@@ -12,7 +12,10 @@ This is a multi-phase process. Follow each phase in order — but ALWAYS check m
 
 ## RECALL (Always Do This First)
 
-Before doing ANY codebase analysis, check the Claude Code memory system for all previously saved state for this app. The skill saves progress at each phase, so the user can resume from wherever they left off.
+Before doing ANY codebase analysis, check for previously saved state. Memory is stored **inside the project directory** at `.claude/aso-screenshots/` so it can be committed to git. Check in this order:
+
+1. Look for `.claude/aso-screenshots/MEMORY.md` in the project root — this is the primary memory location.
+2. If not found, fall back to the global Claude Code memory system (`~/.claude/projects/.../memory/MEMORY.md`).
 
 **Check memory for each of these (in order):**
 
@@ -112,7 +115,11 @@ DO NOT proceed until the user explicitly confirms the benefits. This is an itera
 
 ### Step 5: Save to Memory
 
-Once the user confirms the final benefits, save them to the Claude Code memory system. Create or update a memory file (e.g., `aso_benefits.md`) with:
+Once the user confirms the final benefits, save them to the **project directory** at `.claude/aso-screenshots/aso_benefits.md` (create the directory if it doesn't exist). Also create or update `.claude/aso-screenshots/MEMORY.md` as an index. This keeps memory inside the repo so it can be committed to git and accessed from any machine.
+
+Only fall back to the global Claude Code memory system if writing to the project directory fails for some reason.
+
+Create or update `aso_benefits.md` with:
 - The app name and bundle ID
 - The confirmed benefits list (in order), each with the full headline (ACTION VERB + BENEFIT DESCRIPTOR)
 - The target audience
@@ -198,7 +205,7 @@ Let the user review and swap pairings before proceeding. Do NOT move to generati
 
 ### Step 6: Save to Memory
 
-Once pairings are confirmed, save the full screenshot analysis and pairings to the Claude Code memory system. Create or update a memory file (e.g., `aso_screenshot_pairings.md`) with:
+Once pairings are confirmed, save to `.claude/aso-screenshots/aso_screenshot_pairings.md` in the project directory. Update `.claude/aso-screenshots/MEMORY.md` to reference this file. Create or update with:
 
 - **Every simulator screenshot provided** — file path, what it shows, rating (Great/Usable/Retake), and assessment notes
 - **The confirmed pairings** — which benefit maps to which screenshot file, and why
@@ -553,7 +560,7 @@ Also tell the user exactly which App Store Connect display size slot each screen
 
 ### Save to Memory
 
-After each screenshot is generated (or after the full set is complete), save generation state to the Claude Code memory system. Create or update a memory file (e.g., `aso_generated_screenshots.md`) with:
+After each screenshot is generated (or after the full set is complete), save generation state to `.claude/aso-screenshots/aso_generation_state.md` in the project directory. Update `.claude/aso-screenshots/MEMORY.md` to reference this file. Create or update with:
 
 - **Brand colour**: name + hex code
 - **Target display size**: e.g., iPhone 6.7" (1290x2796)
