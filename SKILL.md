@@ -214,7 +214,9 @@ Once benefits and screenshot pairings are confirmed, generate the final App Stor
 
 ### Prerequisites Check
 
-Before generating, verify the Gemini MCP server is available by checking that the `generate_image` tool exists. If it is NOT available, tell the user:
+Before generating, do two things:
+
+**1. Verify Gemini MCP is available** by checking that the `generate_image` tool exists. If it is NOT available, tell the user:
 
 ```
 ⚠️ Gemini MCP server not detected. To generate screenshots, you need to set it up:
@@ -229,6 +231,18 @@ See: https://github.com/nicobailon/gemini-mcp for setup instructions.
 
 Do NOT proceed with generation if the tool is unavailable.
 
+**2. Confirm the output directory** — ask the user where they want screenshots saved:
+
+```
+Where should I save the generated screenshots?
+  → Press Enter for default: ./screenshots/ (inside your project directory)
+  → Or provide a custom path, e.g. ~/Dropbox/MyApp/Screenshots
+```
+
+Save the confirmed output directory as `SCREENSHOTS_DIR` and use it as the base path for ALL file output from this point forward — pre-resized inputs, scaffold files, generated versions, and the `final/` folder. If the user provides a relative path, resolve it relative to the project root. If the directory doesn't exist, create it.
+
+Save the confirmed output directory to memory (in the benefits or pairings file) so it can be restored if the session is resumed.
+
 ### App Store Connect Dimensions
 
 App Store Connect is **very strict** about image dimensions — it will reject screenshots that don't match exactly. The only accepted portrait sizes are:
@@ -241,7 +255,7 @@ App Store Connect is **very strict** about image dimensions — it will reject s
 
 Default to **1290 x 2796px** (iPhone 6.7") unless the user specifies otherwise. Ask the user which size(s) they need. Up to 10 screenshots can be uploaded per display size.
 
-**IMPORTANT — Aspect ratio mismatch**: Apple's required dimensions are narrower than standard 9:16 (~0.461 ratio vs 0.5625). Nano Banana generates at preset aspect ratios, so we generate **wider than needed** at 9:16 with 4K resolution, then **crop and resize** down to exact Apple dimensions in a post-processing step (see Step 4 below). This approach avoids stretching — we remove excess width instead.
+**IMPORTANT — Pre-resize inputs**: Before sending simulator screenshots to Nano Banana, always pre-resize them to the exact target dimensions. Gemini outputs at approximately the same resolution as its input, so starting at the right size means the output is already correct — no post-processing crop needed. Pre-resize using the bash snippet in Step 0.5 below.
 
 ### Screenshot Format Specification
 
@@ -252,7 +266,7 @@ Each screenshot follows this exact high-converting ASO format. **Consistency acr
 - **Line 2 — Benefit descriptor**: The rest of the headline (e.g., "TRADING CARD PRICES", "ANY VERSE IN SECONDS"). Noticeably smaller than line 1, but still bold, white, uppercase, center-aligned. Same font, same size, same weight on every screenshot.
 - **Font**: Heavy/black weight sans-serif (e.g., SF Pro Display Black, Inter Black, or similar high-impact font). Not just bold — heavy/black weight for maximum impact.
 - **Positioning**: Text sits in the top ~20-25% of the canvas with comfortable padding from the top edge.
-- **Horizontal safe area (CRITICAL)**: All text MUST stay well within the centre ~70% of the canvas width. Leave generous horizontal margins on both sides — at least 15% padding from each edge. This is essential because the post-processing step crops the sides of the image to convert from 9:16 to Apple's narrower aspect ratio. Any text near the left or right edges WILL be cut off. Keep headlines short enough to fit comfortably within this safe zone. If a headline is too long, break it across more lines rather than extending to the edges.
+- **Horizontal safe area**: Keep text within the centre ~70% of the canvas width — at least 15% padding from each edge. This ensures headlines look balanced and aren't uncomfortably close to the frame edges. If a headline is too long, break it across more lines rather than extending to the edges.
 
 **Device frame**:
 - A modern iPhone device mockup (black frame, dynamic island)
@@ -287,6 +301,44 @@ For each benefit + screenshot pair, generate **3 enhanced versions in parallel**
 **Step 0: Save brand colour to memory**
 
 Before generating any scaffolds, save the confirmed brand colour to the Claude Code memory system. Create or update the benefits memory file (e.g., `aso_benefits.md`) to include the brand colour name and hex code. This ensures the colour persists across conversations and is available immediately if the user resumes later.
+
+**Step 0.5: Pre-resize all simulator screenshots to exact target dimensions**
+
+Before any Gemini calls, resize every simulator screenshot to the exact Apple target dimensions. Gemini outputs at approximately the input resolution, so this ensures the output is already the right size with no post-processing crop required.
+
+**IMPORTANT — Batch all pre-resizes into a single Bash call:**
+
+```bash
+TARGET_W=1290 && TARGET_H=2796 && \
+OUT_DIR="screenshots" && mkdir -p "$OUT_DIR" && \
+for INPUT in [path/to/screenshot-1.png] [path/to/screenshot-2.png]; do
+  BASENAME=$(basename "$INPUT" .png)
+  OUTPUT="$OUT_DIR/${BASENAME}-input.png"
+  cp "$INPUT" "$OUTPUT"
+  W=$(sips -g pixelWidth "$OUTPUT" | tail -1 | awk '{print $2}')
+  H=$(sips -g pixelHeight "$OUTPUT" | tail -1 | awk '{print $2}')
+  # Portrait: crop width. Landscape: crop height.
+  if [ "$W" -gt "$H" ]; then
+    CROP_H=$(python3 -c "print(round($W * $TARGET_H / $TARGET_W))")
+    OFFSET_Y=$(python3 -c "print(round(($H - $CROP_H) / 2))")
+    [ "$OFFSET_Y" -gt 0 ] && sips --cropOffset $OFFSET_Y 0 --cropToHeightWidth $CROP_H $W "$OUTPUT"
+  else
+    CROP_W=$(python3 -c "print(round($H * $TARGET_W / $TARGET_H))")
+    OFFSET_X=$(python3 -c "print(round(($W - $CROP_W) / 2))")
+    [ "$OFFSET_X" -gt 0 ] && sips --cropOffset 0 $OFFSET_X --cropToHeightWidth $H $CROP_W "$OUTPUT"
+  fi
+  sips -z $TARGET_H $TARGET_W "$OUTPUT"
+  echo "--- $OUTPUT: $(sips -g pixelWidth -g pixelHeight "$OUTPUT" | grep pixel | awk '{print $2}' | tr '\n' 'x' | sed 's/x$//')"
+done
+```
+
+Adjust `TARGET_W` and `TARGET_H` for the chosen display size:
+- iPhone 6.5" portrait: `TARGET_W=1242 TARGET_H=2688`
+- iPhone 6.7" portrait (default): `TARGET_W=1290 TARGET_H=2796`
+- iPhone 6.9" portrait: `TARGET_W=1320 TARGET_H=2868`
+- iPhone 6.7" landscape: `TARGET_W=2796 TARGET_H=1290`
+
+Use the pre-resized `*-input.png` files as the `--screenshot` argument to compose.py and as the `filePath` in all Gemini `edit_image` calls from this point forward.
 
 **Step 1: Create the scaffold with compose.py**
 
@@ -392,34 +444,25 @@ No watermarks, no extra text, no app store UI chrome.
 
 **IMPORTANT — Consistency enforcement**: The scaffold guarantees consistent layout. The style template guarantees consistent visual treatment. If Nano Banana changes the text, layout, or deviates from the style template, regenerate.
 
-**Step 3: IMMEDIATELY crop and resize ALL 3 versions to App Store dimensions**
+**Step 3: Verify dimensions of ALL 3 versions**
 
-⚠️ **You MUST run this immediately after all 3 `edit_image` calls complete. Do NOT show the user any image before running this. The raw Nano Banana output is always the wrong dimensions for App Store Connect.**
-
-**CRITICAL — Use exactly ONE Bash tool call for all 3 crop/resize operations.** Do NOT make 3 separate Bash calls. Do NOT use parallel Bash calls. Use the single loop below so the user only sees one permission prompt:
+Because inputs were pre-resized in Step 0.5, Gemini's output should already be at or very close to the target dimensions. Run a single Bash call to verify and apply a minor resize if needed (no crop should be necessary):
 
 ```bash
 TARGET_W=1290 && TARGET_H=2796 && \
 for INPUT in screenshots/01-[benefit-slug]/v1.jpg screenshots/01-[benefit-slug]/v2.jpg screenshots/01-[benefit-slug]/v3.jpg; do
-  OUTPUT="${INPUT%.jpg}-resized.jpg"
-  cp "$INPUT" "$OUTPUT"
-  W=$(sips -g pixelWidth "$OUTPUT" | tail -1 | awk '{print $2}')
-  H=$(sips -g pixelHeight "$OUTPUT" | tail -1 | awk '{print $2}')
-  CROP_W=$(python3 -c "print(round($H * $TARGET_W / $TARGET_H))")
-  OFFSET_X=$(python3 -c "print(round(($W - $CROP_W) / 2))")
-  sips --cropOffset 0 $OFFSET_X --cropToHeightWidth $H $CROP_W "$OUTPUT"
-  sips -z $TARGET_H $TARGET_W "$OUTPUT"
-  echo "--- $OUTPUT ---"
-  sips -g pixelWidth -g pixelHeight "$OUTPUT"
+  W=$(sips -g pixelWidth "$INPUT" | tail -1 | awk '{print $2}')
+  H=$(sips -g pixelHeight "$INPUT" | tail -1 | awk '{print $2}')
+  if [ "$W" -ne "$TARGET_W" ] || [ "$H" -ne "$TARGET_H" ]; then
+    sips -z $TARGET_H $TARGET_W "$INPUT"
+    echo "Resized $INPUT to ${TARGET_W}x${TARGET_H}"
+  else
+    echo "OK $INPUT (${W}x${H})"
+  fi
 done
 ```
 
-The script crops to the correct aspect ratio (top-center aligned — sides trimmed equally, top edge preserved so the headline stays put) and resizes to exact pixel dimensions. The resized image is saved as a separate file with `-resized.jpg` appended.
-
-Target dimensions per display size — adjust `TARGET_W` and `TARGET_H`:
-- iPhone 6.5": `TARGET_W=1242 TARGET_H=2688`
-- iPhone 6.7" (default): `TARGET_W=1290 TARGET_H=2796`
-- iPhone 6.9": `TARGET_W=1320 TARGET_H=2868`
+If the output is more than ~5% off from the target dimensions, it means Gemini significantly changed the aspect ratio — in that case, fall back to the full crop/resize approach from Step 0.5 applied to each output file.
 
 **Step 4: Review all 3 versions with the user**
 
