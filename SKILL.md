@@ -19,11 +19,12 @@ Before doing ANY codebase analysis, check for previously saved state. Memory is 
 
 **Check memory for each of these (in order):**
 
-1. **Benefits** — confirmed benefit headlines + target audience + app context
-2. **Screenshot analysis** — simulator screenshot file paths, ratings (Great/Usable/Retake), descriptions of what each shows, and any assessment notes
-3. **Pairings** — which simulator screenshot is paired with which benefit
-4. **Brand colour** — the confirmed background colour (name + hex)
-5. **Generated screenshots** — file paths to generated and resized screenshots, which benefits they correspond to
+1. **Screenshot format** — Standard Portrait, Standard Landscape, or Panoramic Portrait
+2. **Benefits** — confirmed benefit headlines + target audience + app context
+3. **Screenshot analysis** — simulator screenshot file paths, ratings (Great/Usable/Retake), descriptions of what each shows, and any assessment notes
+4. **Pairings** — which simulator screenshot is paired with which benefit
+5. **Brand colour** — the confirmed background colour (name + hex)
+6. **Generated screenshots** — file paths to generated and resized screenshots, which benefits they correspond to
 
 **Present a status summary to the user** showing what's saved and what phase they're at. For example:
 
@@ -45,7 +46,50 @@ Ready to continue generating screenshot 3, or would you like to change anything?
 - Update a single thing without redoing everything ("change the headline for screenshot 1", "use a different brand colour")
 
 **If NO state is found in memory at all:**
-→ Proceed to Benefit Discovery.
+→ Proceed to Format Selection, then Benefit Discovery.
+
+---
+
+## FORMAT SELECTION
+
+**Ask this before anything else** — the format affects compose scripts, pre-resize dimensions, scaffold layout, and Nano Banana prompts. If format is already saved in memory, skip this phase.
+
+Present the three options and make a recommendation based on the app's orientation:
+
+---
+
+**A. Standard Portrait** *(default for portrait apps)*
+- Canvas: 1290×2796px portrait
+- Layout: bold text headline at top, iPhone device mockup below, simulator screenshot inside the device, bottom bleeds off canvas
+- Compose script: `compose.py`
+- Pre-resize inputs to: 1290×2796px
+- Works for any app. Best when the app runs in portrait, or when you want to show the phone in context.
+
+**B. Standard Landscape** *(for landscape apps wanting landscape screenshots)*
+- Canvas: 2796×1290px landscape
+- Layout: text sidebar on left (~750px), full-height app screenshot on right
+- Compose script: `compose_landscape.py`
+- Pre-resize inputs to: 2796×1290px
+- App Store accepts landscape screenshots for landscape-native apps. Good when seeing the full-width UI matters.
+
+**C. Panoramic Portrait** *(for landscape apps — the most visually striking option)*
+- Canvas: 1290×2796px portrait — but the landscape screenshot appears as a full-width strip across the middle of each portrait screenshot
+- The strip shows a different horizontal slice of the landscape source at 1:1 scale on each screenshot — when users swipe in the App Store, the content appears to scroll/pan continuously
+- For main screens (keyboard, gameplay, map): use `compose_portrait_panorama.py` with a `--keyboard-offset` parameter stepping through the landscape image in 1290px increments
+- For modal/sheet screens that don't work as a panoramic strip: use `compose_portrait_panel.py` which shows the screenshot as a floating rounded card
+- Pre-resize inputs to: **2796×1290px** (landscape) — even though the output canvas is portrait
+- Best for: landscape apps with wide continuous content, especially instruments, games, and maps. Inspired by the "spanning screenshots" technique used by top App Store piano apps.
+
+---
+
+After explaining the options, ask the user which they prefer. Recommend based on the app:
+- Portrait app → Standard Portrait
+- Landscape app that wants the most impact → Panoramic Portrait
+- Landscape app that wants a straightforward approach → Standard Landscape
+
+Save the confirmed format to `.claude/aso-screenshots/aso_benefits.md` under a `## Screenshot Format` heading.
+
+**All subsequent phases (screenshot assessment, pairing, generation) must follow the rules for the chosen format.** Refer back to this section whenever format-specific behaviour is needed.
 
 ---
 
@@ -263,6 +307,57 @@ App Store Connect is **very strict** about image dimensions — it will reject s
 Default to **1290 x 2796px** (iPhone 6.7") unless the user specifies otherwise. Ask the user which size(s) they need. Up to 10 screenshots can be uploaded per display size.
 
 **IMPORTANT — Pre-resize inputs**: Before sending simulator screenshots to Nano Banana, always pre-resize them to the exact target dimensions. Gemini outputs at approximately the same resolution as its input, so starting at the right size means the output is already correct — no post-processing crop needed. Pre-resize using the bash snippet in Step 0.5 below.
+
+### Format-Specific Generation Rules
+
+The chosen format (saved in memory) determines which compose script, pre-resize dimensions, and Nano Banana prompting approach to use. Follow the section for your format and ignore the others.
+
+---
+
+#### Format A — Standard Portrait
+
+Use `compose.py`. Pre-resize inputs to the target portrait dimensions (default 1290×2796). Follows the full standard generation process described below in "Screenshot Format Specification" and "Generation Process".
+
+---
+
+#### Format B — Standard Landscape
+
+Use `compose_landscape.py`. Pre-resize inputs to the target landscape dimensions (default 2796×1290).
+
+**Layout:** Text sidebar (~750px wide) on the left, full-height app screenshot on the right. The screenshot is scaled to canvas height so key/content proportions are exact.
+
+**Nano Banana prompting:** Tell it to keep the sidebar solid brand colour (no gradients), the text exactly as positioned, and to enhance the screenshot quality and add a subtle shadow between sidebar and screenshot for depth. No device frame — the screenshot fills the right section directly.
+
+**Consistency:** Use the first approved screenshot as the style template for all subsequent ones, exactly as in Standard Portrait.
+
+---
+
+#### Format C — Panoramic Portrait
+
+Use two compose scripts depending on the screen type:
+
+**Main screens** (keyboard, full-UI, gameplay — anything that spans wide):
+- Script: `compose_portrait_panorama.py`
+- Canvas: 1290×2796px portrait
+- Pre-resize inputs to: **2796×1290px** (landscape)
+- The script places a 1290×1290px strip from the landscape source at 1:1 scale in the middle of the portrait canvas, with the brand-colour band above (containing the text) and below
+- `--keyboard-offset` controls which horizontal slice is shown: 0 for the first screenshot, 1290 for the second, up to `source_width - 1290` for the last. Step in 1290px increments so each screenshot shows a non-overlapping section.
+- This creates the panoramic / spanning effect when the user swipes in the App Store
+
+**Modal/sheet screens** (instruments picker, recordings list, settings — anything that's a sheet not a full-UI):
+- Script: `compose_portrait_panel.py`
+- Canvas: 1290×2796px portrait
+- Pre-resize inputs to: 2796×1290px (landscape)
+- The script shows the screenshot as a floating rounded card on the brand-colour background
+- Nano Banana should show this card inside a **landscape iPhone device frame** (phone shown sideways) to give the panel scale and context — the device should occupy most of the canvas below the text
+
+**Keyboard offset planning:** Before scaffolding, check the landscape source width (should be 2796px after pre-resize). Plan the offsets so the most important content (pressed keys, recording indicators, Hz display) falls within the visible window for the right screenshot. The Hz display is typically top-right of the landscape source — use the highest offset to capture it.
+
+**Critical Nano Banana rule for panoramic keyboard strips:** The keyboard strip is the actual app UI shown at 1:1 scale. Tell Nano Banana to **preserve the keyboard pixels exactly** — do NOT re-render, enhance, or replace the piano keys with AI-generated versions. The only enhancements should be to the brand-colour bands and the text. Any attempt to "improve" the keyboard will make it look AI-generated and break the authentic app feel. Instruct it explicitly: "The keyboard strip in the middle must remain pixel-faithful to the original app screenshot."
+
+**Consistency for panoramic sets:** Because the keyboard strip is preserved rather than AI-generated, style consistency comes from the brand-colour bands and text treatment. Use the first approved screenshot as the style template for text rendering and colour accuracy on subsequent screenshots.
+
+---
 
 ### Screenshot Format Specification
 
