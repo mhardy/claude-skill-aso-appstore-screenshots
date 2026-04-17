@@ -332,7 +332,7 @@ Required only if 6.9" screenshots are NOT provided. If you upload 6.9", this slo
 
 **Strategy**: The **6.9" slot is now the primary required slot**. If you provide 6.9" screenshots, the 6.5" requirement is satisfied and all smaller sizes scale from 6.5" (or 6.9") automatically. Default to **1290 x 2796px** (6.9" slot) unless the user specifies otherwise. Ask the user which size(s) they need. Up to 10 screenshots per display slot.
 
-**IMPORTANT — Pre-resize inputs**: Before sending simulator screenshots to Nano Banana, always pre-resize them to the exact target dimensions. Gemini outputs at approximately the same resolution as its input, so starting at the right size means the output is already correct — no post-processing crop needed. Pre-resize using the bash snippet in Step 0.5 below.
+**IMPORTANT — Pre-resize inputs AND post-resize outputs**: Pre-resize simulator screenshots to the exact target dimensions before sending to Gemini (Step 0.5). After Gemini generates each batch of versions, always resize the outputs back to the target dimensions (Step 3) — Gemini frequently outputs at a smaller size regardless of input resolution.
 
 ### Format-Specific Generation Rules
 
@@ -576,25 +576,19 @@ No watermarks, no extra text, no app store UI chrome.
 
 **IMPORTANT — Consistency enforcement**: The scaffold guarantees consistent layout. The style template guarantees consistent visual treatment. If Nano Banana changes the text, layout, or deviates from the style template, regenerate.
 
-**Step 3: Verify dimensions of ALL 3 versions**
+**Step 3: Resize ALL 3 versions to exact target dimensions (MANDATORY)**
 
-Because inputs were pre-resized in Step 0.5, Gemini's output should already be at or very close to the target dimensions. Run a single Bash call to verify and apply a minor resize if needed (no crop should be necessary):
+Gemini does NOT reliably output at the target dimensions — it frequently outputs at a fraction of the input size (e.g., 704×1526 instead of 1290×2796). **Always resize all 3 outputs unconditionally.** Do not skip this step or assume the output is already the right size.
 
 ```bash
 TARGET_W=1290 && TARGET_H=2796 && \
 for INPUT in screenshots/01-[benefit-slug]/v1.jpg screenshots/01-[benefit-slug]/v2.jpg screenshots/01-[benefit-slug]/v3.jpg; do
-  W=$(sips -g pixelWidth "$INPUT" | tail -1 | awk '{print $2}')
-  H=$(sips -g pixelHeight "$INPUT" | tail -1 | awk '{print $2}')
-  if [ "$W" -ne "$TARGET_W" ] || [ "$H" -ne "$TARGET_H" ]; then
-    sips -z $TARGET_H $TARGET_W "$INPUT"
-    echo "Resized $INPUT to ${TARGET_W}x${TARGET_H}"
-  else
-    echo "OK $INPUT (${W}x${H})"
-  fi
+  sips -z $TARGET_H $TARGET_W "$INPUT"
+  echo "Resized $INPUT to ${TARGET_W}x${TARGET_H}"
 done
 ```
 
-If the output is more than ~5% off from the target dimensions, it means Gemini significantly changed the aspect ratio — in that case, fall back to the full crop/resize approach from Step 0.5 applied to each output file.
+Run this immediately after every batch of `edit_image` calls, before showing results to the user.
 
 **Step 4: Review all 3 versions with the user**
 
