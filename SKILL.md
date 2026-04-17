@@ -296,15 +296,41 @@ Save the confirmed output directory to memory (in the benefits or pairings file)
 
 ### App Store Connect Dimensions
 
-App Store Connect is **very strict** about image dimensions — it will reject screenshots that don't match exactly. The only accepted portrait sizes are:
+App Store Connect is **very strict** about image dimensions — it will reject screenshots that don't match exactly. Apple organises slots by display size, not device model. The accepted sizes are:
 
-| Display | Portrait | Landscape |
-|---------|----------|-----------|
-| iPhone 6.5" | 1242 x 2688px | 2688 x 1242px |
-| iPhone 6.7" | 1290 x 2796px | 2796 x 1290px |
-| iPhone 6.9" | 1320 x 2868px | 2868 x 1320px |
+**6.9" Display** — iPhone Air, 17 Pro Max, 16 Pro Max, 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max
+| Portrait | Landscape |
+|----------|-----------|
+| 1260 x 2736px | 2736 x 1260px |
+| 1290 x 2796px | 2796 x 1290px |
+| 1320 x 2868px | 2868 x 1320px |
 
-Default to **1290 x 2796px** (iPhone 6.7") unless the user specifies otherwise. Ask the user which size(s) they need. Up to 10 screenshots can be uploaded per display size.
+**6.5" Display** — iPhone 14 Plus, 13 Pro Max, 12 Pro Max, 11 Pro Max, 11, XS Max, XR
+Required only if 6.9" screenshots are NOT provided. If you upload 6.9", this slot is optional and smaller sizes scale from 6.5" if not provided.
+| Portrait | Landscape |
+|----------|-----------|
+| 1284 x 2778px | 2778 x 1284px |
+| 1242 x 2688px | 2688 x 1242px |
+
+**6.3" Display** — iPhone 17 Pro, 17, 16 Pro, 16, 15 Pro, 15, 14 Pro
+*(Falls back to 6.5" if not provided)*
+| Portrait | Landscape |
+|----------|-----------|
+| 1179 x 2556px | 2556 x 1179px |
+| 1206 x 2622px | 2622 x 1206px |
+
+**6.1" Display** — iPhone 17e, 16e, 14, 13 Pro, 13, 13 mini, 12 Pro, 12, 12 mini, 11 Pro, XS, X
+*(Falls back to 6.5" if not provided)*
+| Portrait | Landscape |
+|----------|-----------|
+| 1170 x 2532px | 2532 x 1170px |
+| 1125 x 2436px | 2436 x 1125px |
+| 1080 x 2340px | 2340 x 1080px |
+
+**5.5" Display** — iPhone 8 Plus, 7 Plus, 6S Plus, 6 Plus: 1242 x 2208px / 2208 x 1242px
+**4.7" Display** — iPhone SE (2nd/3rd gen), 8, 7, 6S, 6: 750 x 1334px / 1334 x 750px
+
+**Strategy**: The **6.9" slot is now the primary required slot**. If you provide 6.9" screenshots, the 6.5" requirement is satisfied and all smaller sizes scale from 6.5" (or 6.9") automatically. Default to **1290 x 2796px** (6.9" slot) unless the user specifies otherwise. Ask the user which size(s) they need. Up to 10 screenshots per display slot.
 
 **IMPORTANT — Pre-resize inputs**: Before sending simulator screenshots to Nano Banana, always pre-resize them to the exact target dimensions. Gemini outputs at approximately the same resolution as its input, so starting at the right size means the output is already correct — no post-processing crop needed. Pre-resize using the bash snippet in Step 0.5 below.
 
@@ -435,10 +461,14 @@ done
 ```
 
 Adjust `TARGET_W` and `TARGET_H` for the chosen display size:
-- iPhone 6.5" portrait: `TARGET_W=1242 TARGET_H=2688`
-- iPhone 6.7" portrait (default): `TARGET_W=1290 TARGET_H=2796`
-- iPhone 6.9" portrait: `TARGET_W=1320 TARGET_H=2868`
-- iPhone 6.7" landscape: `TARGET_W=2796 TARGET_H=1290`
+- 6.9" portrait (default): `TARGET_W=1290 TARGET_H=2796`
+- 6.9" portrait (alt): `TARGET_W=1260 TARGET_H=2736` or `TARGET_W=1320 TARGET_H=2868`
+- 6.5" portrait: `TARGET_W=1284 TARGET_H=2778`
+- 6.5" portrait (alt): `TARGET_W=1242 TARGET_H=2688`
+- 6.3" portrait: `TARGET_W=1179 TARGET_H=2556` or `TARGET_W=1206 TARGET_H=2622`
+- 6.1" portrait: `TARGET_W=1170 TARGET_H=2532`
+- 6.5" landscape: `TARGET_W=2778 TARGET_H=1284`
+- 6.9" landscape: `TARGET_W=2796 TARGET_H=1290`
 
 Use the pre-resized `*-input.png` files as the `--screenshot` argument to compose.py and as the `filePath` in all Gemini `edit_image` calls from this point forward.
 
