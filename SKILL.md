@@ -290,7 +290,7 @@ Where should I save the generated screenshots?
   → Or provide a custom path, e.g. ~/Dropbox/MyApp/Screenshots
 ```
 
-Save the confirmed output directory as `SCREENSHOTS_DIR` and use it as the base path for ALL file output from this point forward — pre-resized inputs, scaffold files, generated versions, and the `final/` folder. If the user provides a relative path, resolve it relative to the project root. If the directory doesn't exist, create it.
+Save the confirmed output directory as `SCREENSHOTS_DIR` and use it as the base path for ALL file output from this point forward — pre-resized inputs, scaffold files, generated versions, and the `final-6.9/` folder. If the user provides a relative path, resolve it relative to the project root. If the directory doesn't exist, create it.
 
 Save the confirmed output directory to memory (in the benefits or pairings file) so it can be restored if the session is resumed.
 
@@ -331,6 +331,8 @@ Required only if 6.9" screenshots are NOT provided. If you upload 6.9", this slo
 **4.7" Display** — iPhone SE (2nd/3rd gen), 8, 7, 6S, 6: 750 x 1334px / 1334 x 750px
 
 **Strategy**: The **6.9" slot is now the primary required slot**. If you provide 6.9" screenshots, the 6.5" requirement is satisfied and all smaller sizes scale from 6.5" (or 6.9") automatically. Default to **1290 x 2796px** (6.9" slot) unless the user specifies otherwise. Ask the user which size(s) they need. Up to 10 screenshots per display slot.
+
+**Uploading 6.9" screenshots**: In App Store Connect's standard screenshot editor, only the 6.5" slot may be visible on the app's page even though 6.9" is the correct/required size. Tell the user to use **Media Manager** (App Store Connect's separate media upload tool) to upload directly to the **6.9" slot** — this is where the 6.9" slot actually shows up.
 
 **IMPORTANT — Pre-resize inputs AND post-resize outputs**: Pre-resize simulator screenshots to the exact target dimensions before sending to Gemini (Step 0.5). After Gemini generates each batch of versions, always resize the outputs back to the target dimensions (Step 3) — Gemini frequently outputs at a smaller size regardless of input resolution.
 
@@ -547,7 +549,7 @@ The final result should look like it was designed by a professional App Store sc
 
 Use **two images** as input:
 1. The **scaffold** for this benefit (`screenshots/0N-[benefit-slug]/scaffold.png`) — defines the layout
-2. The **first approved screenshot** (`screenshots/final/01-[first-benefit-slug].jpg`) — defines the style template
+2. The **first approved screenshot** (`screenshots/final-6.9/01-[first-benefit-slug].jpg`) — defines the style template
 
 **Subsequent screenshot prompt template:**
 
@@ -600,7 +602,7 @@ Label them clearly as **Version 1**, **Version 2**, and **Version 3** and ask th
 
 If the user wants changes, use `edit_image` with **three images** as input:
 1. The **scaffold** (`scaffold.png`) — anchors the layout (text position, device placement, screenshot)
-2. The **style template** (the first approved screenshot from `screenshots/final/01-*.jpg`) — defines the device frame rendering and overall visual style that must be consistent across the entire set
+2. The **style template** (the first approved screenshot from `screenshots/final-6.9/01-*.jpg`) — defines the device frame rendering and overall visual style that must be consistent across the entire set
 3. The **approved design** (the version the user liked best for this specific screenshot) — anchors the creative direction and breakout element approach
 
 The prompt should reference all three:
@@ -621,16 +623,16 @@ When iterating, generate **3 versions in parallel** again (3 parallel `edit_imag
 
 Repeat until the user is happy.
 
-**Step 6: Copy approved version to `final/`**
+**Step 6: Copy approved version to `final-6.9/`**
 
-Once the user picks a winner, copy the resized version to `screenshots/final/`:
+Once the user picks a winner, copy the resized version to `screenshots/final-6.9/`:
 
 ```bash
-mkdir -p screenshots/final
-cp "screenshots/01-[benefit-slug]/v2-resized.jpg" "screenshots/final/01-[benefit-slug].jpg"
+mkdir -p screenshots/final-6.9
+cp "screenshots/01-[benefit-slug]/v2-resized.jpg" "screenshots/final-6.9/01-[benefit-slug].jpg"
 ```
 
-This keeps `final/` clean — only approved, App Store-ready screenshots, one per benefit, numbered in order. Then move to the next benefit.
+This keeps `final-6.9/` clean — only approved, App Store-ready screenshots, one per benefit, numbered in order. Then move to the next benefit.
 
 ### Determine Brand Colour (Automatic)
 
@@ -668,12 +670,12 @@ screenshots/
     scaffold.png
     v1.jpg
     ...
-  final/                      ← approved screenshots, ready to upload
+  final-6.9/                  ← approved screenshots, ready to upload
     01-track-card-prices.jpg
     02-search-any-card.jpg
 ```
 
-The `final/` folder is the only one the user needs to care about — it contains one approved, App Store-ready screenshot per benefit, numbered in order. The benefit subfolders contain all working versions and can be ignored or deleted after the set is complete.
+The `final-6.9/` folder is the only one the user needs to care about — it contains one approved, App Store-ready screenshot per benefit, numbered in order. The benefit subfolders contain all working versions and can be ignored or deleted after the set is complete.
 
 Also tell the user exactly which App Store Connect display size slot each screenshot fits into.
 
@@ -687,7 +689,7 @@ After each screenshot is generated (or after the full set is complete), save gen
   - Benefit headline (ACTION VERB + DESCRIPTOR)
   - Benefit subfolder path (e.g., `screenshots/01-track-card-prices/`)
   - Which version the user chose (v1, v2, or v3)
-  - Final file path (e.g., `screenshots/final/01-track-card-prices.jpg`)
+  - Final file path (e.g., `screenshots/final-6.9/01-track-card-prices.jpg`)
   - Simulator screenshot used (file path)
   - Breakout elements described in the prompt
   - Status: generated / approved / needs-redo
@@ -697,13 +699,13 @@ Update this memory **incrementally** — after each screenshot is approved, add 
 
 ### Showcase Image
 
-Once ALL screenshots in the set are approved and saved to `final/`, generate a showcase image that displays up to 3 of the final screenshots side-by-side with a GitHub link. Use the showcase.py script in the skill directory:
+Once ALL screenshots in the set are approved and saved to `final-6.9/`, generate a showcase image that displays up to 3 of the final screenshots side-by-side with a GitHub link. Use the showcase.py script in the skill directory:
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots"
 
 python3 "$SKILL_DIR/showcase.py" \
-  --screenshots screenshots/final/01-*.jpg screenshots/final/02-*.jpg screenshots/final/03-*.jpg \
+  --screenshots screenshots/final-6.9/01-*.jpg screenshots/final-6.9/02-*.jpg screenshots/final-6.9/03-*.jpg \
   --github "github.com/adamlyttleapps" \
   --output screenshots/showcase.png
 ```
