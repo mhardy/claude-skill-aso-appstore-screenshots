@@ -1,6 +1,6 @@
 ---
 name: aso-appstore-screenshots
-description: Generate high-converting App Store screenshots by analyzing your app's codebase, discovering core benefits, and creating ASO-optimized screenshot images using Nano Banana Pro.
+description: Generate high-converting App Store screenshots by analyzing your app's codebase, discovering core benefits, and deterministically compositing ASO-optimized screenshot images (with optional Nano Banana Pro concept exploration as a fallback).
 user-invocable: true
 ---
 
@@ -52,7 +52,7 @@ Ready to continue generating screenshot 3, or would you like to change anything?
 
 ## FORMAT SELECTION
 
-**Ask this before anything else** — the format affects compose scripts, pre-resize dimensions, scaffold layout, and Nano Banana prompts. If format is already saved in memory, skip this phase.
+**Ask this before anything else** — the format affects which compose script is used and its layout. If format is already saved in memory, skip this phase.
 
 Present the three options and make a recommendation based on the app's orientation:
 
@@ -261,28 +261,13 @@ This is critical for resumability. If the user comes back in a new conversation,
 
 ## GENERATION
 
-Once benefits and screenshot pairings are confirmed, generate the final App Store screenshots using Nano Banana Pro (via the Gemini MCP server).
+Once benefits and screenshot pairings are confirmed, generate the final App Store screenshots **deterministically with `compose.py`**. The compositor already builds in everything an AI enhancement pass used to add — a real device frame, gradient backgrounds, breakout cards, badges, and callouts — so no image model is used by default. Text stays crisp and OCR-indexable, the app UI stays pixel-faithful, and every render already lands at the exact target dimensions.
+
+AI (Nano Banana Pro, via the Gemini MCP server) is available only as an **optional concept-exploration fallback** (see Step 5 below) for when none of the deterministic concepts land. Even then, its output is a reference to rebuild by hand, never a file that ships to `final-6.9/`.
 
 ### Prerequisites Check
 
-Before generating, do two things:
-
-**1. Verify Gemini MCP is available** by checking that the `generate_image` tool exists. If it is NOT available, tell the user:
-
-```
-⚠️ Gemini MCP server not detected. To generate screenshots, you need to set it up:
-
-1. Install: npm install -g gemini-mcp
-2. Add to your Claude Code MCP config (~/.claude/settings.json or project .mcp.json)
-3. Restart Claude Code
-4. Run this skill again
-
-See: https://github.com/nicobailon/gemini-mcp for setup instructions.
-```
-
-Do NOT proceed with generation if the tool is unavailable.
-
-**2. Confirm the output directory** — ask the user where they want screenshots saved:
+Confirm the output directory — ask the user where they want screenshots saved:
 
 ```
 Where should I save the generated screenshots?
@@ -290,7 +275,7 @@ Where should I save the generated screenshots?
   → Or provide a custom path, e.g. ~/Dropbox/MyApp/Screenshots
 ```
 
-Save the confirmed output directory as `SCREENSHOTS_DIR` and use it as the base path for ALL file output from this point forward — pre-resized inputs, scaffold files, generated versions, and the `final-6.9/` folder. If the user provides a relative path, resolve it relative to the project root. If the directory doesn't exist, create it.
+Save the confirmed output directory as `SCREENSHOTS_DIR` and use it as the base path for ALL file output from this point forward — pre-resized inputs, rendered concepts, and the `final-6.9/` folder. If the user provides a relative path, resolve it relative to the project root. If the directory doesn't exist, create it.
 
 Save the confirmed output directory to memory (in the benefits or pairings file) so it can be restored if the session is resumed.
 
@@ -334,17 +319,17 @@ Required only if 6.9" screenshots are NOT provided. If you upload 6.9", this slo
 
 **Uploading 6.9" screenshots**: In App Store Connect's standard screenshot editor, only the 6.5" slot may be visible on the app's page even though 6.9" is the correct/required size. Tell the user to use **Media Manager** (App Store Connect's separate media upload tool) to upload directly to the **6.9" slot** — this is where the 6.9" slot actually shows up.
 
-**IMPORTANT — Pre-resize inputs AND post-resize outputs**: Pre-resize simulator screenshots to the exact target dimensions before sending to Gemini (Step 0.5). After Gemini generates each batch of versions, always resize the outputs back to the target dimensions (Step 3) — Gemini frequently outputs at a smaller size regardless of input resolution.
+**Deterministic output is already exact-size**: `compose.py` renders the exact target canvas on every run and scales/crops whatever simulator screenshot you pass it into the device cutout automatically — no pre- or post-resize step needed for the default path. Resizing only matters if you use the optional Nano Banana concept-exploration fallback (Step 5), since Gemini frequently outputs at a smaller size than its input regardless of resolution.
 
 ### Format-Specific Generation Rules
 
-The chosen format (saved in memory) determines which compose script, pre-resize dimensions, and Nano Banana prompting approach to use. Follow the section for your format and ignore the others.
+The chosen format (saved in memory) determines which compose script and pre-resize dimensions to use. Follow the section for your format and ignore the others.
 
 ---
 
 #### Format A — Standard Portrait
 
-Use `compose.py`. Pre-resize inputs to the target portrait dimensions (default 1290×2796). Follows the full standard generation process described below in "Screenshot Format Specification" and "Generation Process".
+Use `compose.py` — fully deterministic by default, no pre-resize needed (it scales/crops whatever screenshot you pass it into the device cutout automatically). Follows the full standard generation process described below in "Screenshot Format Specification" and "Generation Process".
 
 ---
 
@@ -354,7 +339,7 @@ Use `compose_landscape.py`. Pre-resize inputs to the target landscape dimensions
 
 **Layout:** Text sidebar (~750px wide) on the left, full-height app screenshot on the right. The screenshot is scaled to canvas height so key/content proportions are exact.
 
-**Nano Banana prompting:** Tell it to keep the sidebar solid brand colour (no gradients), the text exactly as positioned, and to enhance the screenshot quality and add a subtle shadow between sidebar and screenshot for depth. No device frame — the screenshot fills the right section directly.
+**Deterministic by default:** `compose_landscape.py`'s output is already the final image — no AI enhancement step needed. It doesn't yet support breakout/badge/callout flags the way `compose.py` does; if you need those, use the optional Nano Banana concept-exploration fallback (Generation Process, Step 5) for this format specifically, with the same rule — its output is a reference to rebuild, never the shipped file.
 
 **Consistency:** Use the first approved screenshot as the style template for all subsequent ones, exactly as in Standard Portrait.
 
@@ -376,12 +361,12 @@ Use two compose scripts depending on the screen type:
 - Script: `compose_portrait_panel.py`
 - Canvas: 1290×2796px portrait
 - Pre-resize inputs to: 2796×1290px (landscape)
-- The script shows the screenshot as a floating rounded card on the brand-colour background
-- Nano Banana should show this card inside a **landscape iPhone device frame** (phone shown sideways) to give the panel scale and context — the device should occupy most of the canvas below the text
+- The script shows the screenshot as a floating rounded card on the brand-colour background — this is the deterministic default, no AI step needed
+- **Known gap**: `compose_portrait_panel.py` doesn't wrap the card in a device frame (unlike `compose.py`). If the user wants the card shown inside a landscape iPhone frame for scale/context, that's currently only achievable via the optional Nano Banana concept-exploration fallback (Generation Process, Step 5) — its output is a reference to rebuild, not a shipped file, so treat this as a stopgap, not a first choice
 
-**Keyboard offset planning:** Before scaffolding, check the landscape source width (should be 2796px after pre-resize). Plan the offsets so the most important content (pressed keys, recording indicators, Hz display) falls within the visible window for the right screenshot. The Hz display is typically top-right of the landscape source — use the highest offset to capture it.
+**Keyboard offset planning:** Before rendering, check the landscape source width (should be 2796px after pre-resize). Plan the offsets so the most important content (pressed keys, recording indicators, Hz display) falls within the visible window for the right screenshot. The Hz display is typically top-right of the landscape source — use the highest offset to capture it.
 
-**Critical Nano Banana rule for panoramic keyboard strips:** The keyboard strip is the actual app UI shown at 1:1 scale. Tell Nano Banana to **preserve the keyboard pixels exactly** — do NOT re-render, enhance, or replace the piano keys with AI-generated versions. The only enhancements should be to the brand-colour bands and the text. Any attempt to "improve" the keyboard will make it look AI-generated and break the authentic app feel. Instruct it explicitly: "The keyboard strip in the middle must remain pixel-faithful to the original app screenshot."
+**Keyboard strip stays pixel-faithful by default:** Since `compose_portrait_panorama.py` is deterministic, the keyboard strip is never touched by AI. If you ever use the optional Nano Banana concept-exploration fallback near this format, tell it explicitly to **preserve the keyboard pixels exactly** — do NOT re-render, enhance, or replace the piano keys, since that would make it look AI-generated and break the authentic app feel.
 
 **Consistency for panoramic sets:** Because the keyboard strip is preserved rather than AI-generated, style consistency comes from the brand-colour bands and text treatment. Use the first approved screenshot as the style template for text rendering and colour accuracy on subsequent screenshots.
 
@@ -406,242 +391,105 @@ Each screenshot follows this exact high-converting ASO format. **Consistency acr
 - The device is centered horizontally
 
 **Breakout elements (optional — only when obvious and relevant)**:
-Breakout elements can give screenshots personality and make them feel dynamic. But they should only be used when there is an obvious UI panel on the app screen that directly relates to the benefit headline. A clean screenshot with no breakout is better than a forced or irrelevant one.
+Breakout elements can give screenshots personality and make them feel dynamic. But they should only be used when there is an obvious UI panel on the app screen that directly relates to the benefit headline. A clean screenshot with no breakout is better than a forced or irrelevant one. By default this is achieved deterministically via `compose.py --breakout` (see Generation Process) — you supply the panel's pixel coordinates from the source screenshot, and the script handles the scale-up, edge-overlap, and drop shadow itself.
 
-- **Primary — Feature zoom-out (only when relevant)**: If there is an obvious, visually compelling entire UI panel or grouped section on the app screen that directly reinforces the benefit headline, make it "pop out" from the device frame. The panel must stay at the same vertical position and orientation as where it appears on the app screen — NOT rotated or angled. It should extend dramatically beyond BOTH left and right edges of the device frame, clearly overlapping the phone bezel on both sides, expanding to nearly the full width of the screenshot canvas. The panel must be SCALED UP significantly — much larger than it appears on the phone screen — so that it extends well beyond both left and right edges of the device frame. It should look like it is floating in front of the phone at a larger scale, bursting out of the phone's boundaries. Add a soft drop shadow beneath the breakout panel to create depth and make it feel like it's hovering above the device. The enlarged size plus the overlap with the device frame edges plus the shadow is what creates the dramatic pop-out effect. The panel must be a complete card/section (not an individual button, icon, or small element). If no panel clearly relates to the headline, skip the breakout entirely.
-- **Secondary — Supporting elements (OPTIONAL, use restraint)**: You may add 1-2 small supporting elements (contextual icons, subtle directional cues, small floating UI elements) ONLY if they are directly relevant to the benefit and enhance the story. These must NOT compete with the primary zoom-out element for attention. Less is more — a clean composition with one strong breakout element is better than a cluttered one with many. Every element added must earn its place by helping tell the story of that screen.
+- **Primary — Feature zoom-out (only when relevant)**: If there is an obvious, visually compelling entire UI panel or grouped section on the app screen that directly reinforces the benefit headline, make it "pop out" from the device frame via `--breakout`. The panel stays at the same vertical position and orientation as where it appears on the app screen — the script doesn't rotate or angle it. It extends beyond both left and right edges of the device frame (tune `zoom` until it clearly overlaps the phone bezel on both sides) and gets a soft drop shadow so it reads as floating above the device. The box you pass must crop a complete card/section — not an individual button, icon, or small element. If no panel clearly relates to the headline, skip the breakout entirely.
+- **Secondary — Supporting elements (OPTIONAL, use restraint)**: Use `--badges`/`--callouts` for 1-2 small supporting accents (a stat pill, a labeled callout) ONLY if directly relevant to the benefit. These must NOT compete with the primary breakout for attention. Less is more — a clean composition with one strong breakout element is better than a cluttered one with many.
 
 **What to avoid**: Don't add decorative elements just because you can. No random icons, no excessive particles/sparkles, no elements unrelated to the benefit. The screenshot should feel polished and intentional, not busy.
 
 **Background (MUST be consistent across ALL screenshots in the set)**:
-- Solid bold brand colour fills the entire canvas — same colour on every screenshot
-- The background must be a clean, solid brand colour. Do NOT add glows, gradients, radial patterns, or light effects.
-- If accent shapes are used, use the same style of accent on every screenshot so the set looks like a cohesive series when viewed side-by-side
+- Bold brand colour fills the entire canvas — either flat (`compose.py` default) or the built-in radial-glow gradient (`--gradient`) — same treatment on every screenshot in the set
+- Whichever treatment is chosen for the first approved screenshot becomes the style template for the rest of the set
+- If accent shapes (badges/callouts) are used, use the same style of accent on every screenshot so the set looks like a cohesive series when viewed side-by-side
 
-### Generation Process — Two-Stage: Scaffold then Enhance
+### Generation Process — Deterministic by Default
 
-Generation uses a two-stage approach for consistency:
-1. **Stage 1 (Scaffold)**: compose.py creates a deterministic local image with the correct text, device frame, and screenshot. This guarantees consistent layout across all screenshots.
-2. **Stage 2 (Enhance)**: The scaffold is sent to Nano Banana Pro to add breakout elements, depth, and visual polish.
+Screenshots are produced **entirely by `compose.py`** — no image model touches the pixels unless the user explicitly asks for the optional fallback in Step 5. The script already builds in a real device frame, gradient backgrounds, breakout cards, badges, and callouts, so text stays crisp and OCR-indexable, the app UI stays pixel-faithful, and every render lands at the exact target dimensions on the first try — no post-generation resize step needed.
 
-**The first approved screenshot becomes the style template for the entire set.** All subsequent screenshots are enhanced using both their own scaffold (for layout) AND the first approved screenshot (for style). This ensures every screenshot in the set has the same device frame rendering, text treatment, background style, and overall visual quality — so when viewed side-by-side in the App Store, they look like a cohesive professional set.
+**The first approved screenshot becomes the style template for the rest of the set.** Reuse its background treatment (flat vs gradient), accent colour, and badge/callout style on subsequent screenshots so the set reads as a cohesive series when swiped through.
 
-For each benefit + screenshot pair, generate **3 enhanced versions in parallel** so the user can pick the best one.
+For each benefit + screenshot pair, render **4 concept variations** so the user has real alternatives to compare — the same role the old "3 Nano Banana versions" used to play, just instant, free, and reproducible:
 
-**Step 0: Save brand colour to memory**
+1. **Clean** — flat background, no breakout
+2. **Gradient** — the richer radial-glow background, still no breakout
+3. **Breakout** — the most relevant UI panel popped out over the device frame (only if one clearly reinforces the headline)
+4. **Breakout + accent** — the breakout plus a badge or callout drawing attention to a specific detail
 
-Before generating any scaffolds, save the confirmed brand colour to the Claude Code memory system. Create or update the benefits memory file (e.g., `aso_benefits.md`) to include the brand colour name and hex code. This ensures the colour persists across conversations and is available immediately if the user resumes later.
+If nothing on screen supports a breakout, drop variations 3–4 and instead vary accent colour, or add a callout pointing at a smaller detail (a stat, a label, a button) instead of forcing a panel that isn't there.
 
-**Step 0.5: Pre-resize all simulator screenshots to exact target dimensions**
+**Step 0: Save brand + accent colour to memory**
 
-Before any Gemini calls, resize every simulator screenshot to the exact Apple target dimensions. Gemini outputs at approximately the input resolution, so this ensures the output is already the right size with no post-processing crop required.
+Before generating, save the confirmed brand colour (and accent colour, if different) to the benefits memory file (e.g., `aso_benefits.md`). This ensures they persist across conversations and are available immediately if the user resumes later.
 
-**IMPORTANT — Batch all pre-resizes into a single Bash call:**
+**Step 1: Find a breakout candidate (if any)**
 
-```bash
-TARGET_W=1290 && TARGET_H=2796 && \
-OUT_DIR="screenshots" && mkdir -p "$OUT_DIR" && \
-for INPUT in [path/to/screenshot-1.png] [path/to/screenshot-2.png]; do
-  BASENAME=$(basename "$INPUT" .png)
-  OUTPUT="$OUT_DIR/${BASENAME}-input.png"
-  cp "$INPUT" "$OUTPUT"
-  W=$(sips -g pixelWidth "$OUTPUT" | tail -1 | awk '{print $2}')
-  H=$(sips -g pixelHeight "$OUTPUT" | tail -1 | awk '{print $2}')
-  # Portrait: crop width. Landscape: crop height.
-  if [ "$W" -gt "$H" ]; then
-    CROP_H=$(python3 -c "print(round($W * $TARGET_H / $TARGET_W))")
-    OFFSET_Y=$(python3 -c "print(round(($H - $CROP_H) / 2))")
-    [ "$OFFSET_Y" -gt 0 ] && sips --cropOffset $OFFSET_Y 0 --cropToHeightWidth $CROP_H $W "$OUTPUT"
-  else
-    CROP_W=$(python3 -c "print(round($H * $TARGET_W / $TARGET_H))")
-    OFFSET_X=$(python3 -c "print(round(($W - $CROP_W) / 2))")
-    [ "$OFFSET_X" -gt 0 ] && sips --cropOffset 0 $OFFSET_X --cropToHeightWidth $H $CROP_W "$OUTPUT"
-  fi
-  sips -z $TARGET_H $TARGET_W "$OUTPUT"
-  echo "--- $OUTPUT: $(sips -g pixelWidth -g pixelHeight "$OUTPUT" | grep pixel | awk '{print $2}' | tr '\n' 'x' | sed 's/x$//')"
-done
-```
+Use the Read tool to look closely at the paired simulator screenshot. Identify whether there's an obvious, self-contained UI panel or card — not a single button or icon — that directly reinforces the benefit headline. If there is, estimate its bounding box in the screenshot's own pixel coordinates (top-left origin); this becomes the `box` in `--breakout`. If nothing qualifies, skip the breakout variations for this screenshot — a clean screenshot beats a forced one.
 
-Adjust `TARGET_W` and `TARGET_H` for the chosen display size:
-- 6.9" portrait (default): `TARGET_W=1290 TARGET_H=2796`
-- 6.9" portrait (alt): `TARGET_W=1260 TARGET_H=2736` or `TARGET_W=1320 TARGET_H=2868`
-- 6.5" portrait: `TARGET_W=1284 TARGET_H=2778`
-- 6.5" portrait (alt): `TARGET_W=1242 TARGET_H=2688`
-- 6.3" portrait: `TARGET_W=1179 TARGET_H=2556` or `TARGET_W=1206 TARGET_H=2622`
-- 6.1" portrait: `TARGET_W=1170 TARGET_H=2532`
-- 6.5" landscape: `TARGET_W=2778 TARGET_H=1284`
-- 6.9" landscape: `TARGET_W=2796 TARGET_H=1290`
+**Step 2: Render all 4 concepts in one batched call**
 
-Use the pre-resized `*-input.png` files as the `--screenshot` argument to compose.py and as the `filePath` in all Gemini `edit_image` calls from this point forward.
-
-**Step 1: Create the scaffold with compose.py**
-
-The compose.py script lives in the skill directory. Run it to create the deterministic base screenshot.
-
-**IMPORTANT — Batch all 3 scaffolds into a single Bash call** to minimize permission prompts. Chain the commands with `&&` so the user only needs to approve once:
+**IMPORTANT — batch all 4 renders into a single Bash call** chained with `&&` so the user only needs to approve once:
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
-mkdir -p screenshots/01-[benefit-slug] screenshots/02-[benefit-slug] screenshots/03-[benefit-slug] && \
-python3 "$SKILL_DIR/compose.py" \
-  --bg "[HEX CODE]" --verb "[VERB 1]" --desc "[DESC 1]" \
-  --screenshot [path/to/screenshot-1.png] \
-  --output screenshots/01-[benefit-slug]/scaffold.png && \
-python3 "$SKILL_DIR/compose.py" \
-  --bg "[HEX CODE]" --verb "[VERB 2]" --desc "[DESC 2]" \
-  --screenshot [path/to/screenshot-2.png] \
-  --output screenshots/02-[benefit-slug]/scaffold.png && \
-python3 "$SKILL_DIR/compose.py" \
-  --bg "[HEX CODE]" --verb "[VERB 3]" --desc "[DESC 3]" \
-  --screenshot [path/to/screenshot-3.png] \
-  --output screenshots/03-[benefit-slug]/scaffold.png
+mkdir -p screenshots/01-[benefit-slug] && \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
+  --screenshot [path] --output screenshots/01-[benefit-slug]/v1-clean.png && \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
+  --screenshot [path] --gradient \
+  --output screenshots/01-[benefit-slug]/v2-gradient.png && \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
+  --screenshot [path] --gradient \
+  --breakout '{"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0}' \
+  --output screenshots/01-[benefit-slug]/v3-breakout.png && \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
+  --screenshot [path] --gradient --accent "[ACCENT HEX]" \
+  --breakout '{"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0}' \
+  --badges '[{"text":"...","xy":[x,y],"anchor":"tl"}]' \
+  --output screenshots/01-[benefit-slug]/v4-badge.png
 ```
 
-This outputs pixel-perfect 1290×2796 PNGs with:
-- Bold white headline text (verb auto-sized to fit canvas width)
-- Real iPhone 15 Pro device frame (photo, not hand-drawn) with the screenshot clipped to its silhouette
-- Solid background colour by default
+Skip the breakout/badge calls (variations 3–4) entirely if Step 1 found no candidate — render two background-only variations instead, e.g. a second with a callout on a smaller detail.
 
-The scaffolds are internal intermediates — do NOT show them to the user or ask for confirmation. Proceed immediately to Step 2 (Nano Banana enhancement).
+**Step 3: Review all 4 with the user**
 
-**Optional — skip AI enhancement entirely for a fully deterministic set:** If the user wants text and app pixels to stay pixel-perfect (no AI re-rendering risk to faces, UI, or captions), `compose.py` can produce the finished image itself instead of a scaffold, using these optional flags:
+Show all 4 renders with the Read tool. Label them clearly (Clean / Gradient / Breakout / Breakout+Badge) and briefly note what differs between them. Ask the user to pick a favourite or request changes.
 
-- `--gradient` — dark radial-glow gradient built from `--bg` instead of a flat fill
-- `--accent HEX` — colour for badge/callout pills (defaults to `--bg`)
-- `--breakout '{"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0}'` — lifts a real UI card out of the screenshot (crop box in the screenshot's own pixel coordinates) and floats it over the device frame with a shadow and rim highlight
-- `--badges '[{"text":"...","xy":[x,y],"anchor":"tl"}]'` — accent pill(s) pinned to a point on the canvas
-- `--callouts '[{"text":"...","anchor":[x,y],"label":[x,y],"side":"left"}]'` — pill with a leader line pointing at a spot on the artwork
+**Step 4: Iterate**
 
-When using this deterministic path, skip Steps 2–5 (Nano Banana enhancement) entirely and copy the `compose.py` output straight to `final-6.9/` in Step 6. Only use a breakout when there's an obvious UI panel that reinforces the headline — same rule as the AI-enhancement path.
+Because every visual choice is a `compose.py` flag, iteration is just re-running the script with adjusted arguments: move a badge's `xy`, change the breakout's `zoom`/`dy`, swap `--accent`, toggle `--gradient`, reword `--callouts` text. Batch multiple tweaks into one Bash call, the same as Step 2. This is fast and cheap enough to iterate live with the user rather than waiting on generations. Repeat until they're happy.
 
-**Step 2: Enhance with Nano Banana Pro (3 versions in parallel)**
+**Step 5 (optional): Concept exploration via Nano Banana Pro**
 
-Make **3 parallel `edit_image` calls**. The parallel execution is critical — always fire all 3 calls in a single message, never sequentially.
+Only reach for this if the user isn't happy with any deterministic concept and wants ideas beyond what `compose.py`'s flags can easily express. This step produces a **reference concept only** — its output is never copied to `final-6.9/` and never shown as a finished candidate.
 
-For each of the 3 calls, use:
-- `prompt`: Enhancement instructions (see prompt templates below — different for first vs subsequent screenshots)
-- `images`: See below for which images to include
-- `outputPath`: Different path for each version:
-  - `./screenshots/01-[benefit-slug]/v1.jpg`
-  - `./screenshots/01-[benefit-slug]/v2.jpg`
-  - `./screenshots/01-[benefit-slug]/v3.jpg`
+1. Check that `generate_image`/`edit_image` from the Gemini MCP server is available. If not, tell the user how to set it up:
+   ```
+   ⚠️ Gemini MCP server not detected. To use concept exploration, you need to set it up:
 
-#### First screenshot (no approved template yet)
+   1. Install: npm install -g gemini-mcp
+   2. Add to your Claude Code MCP config (~/.claude/settings.json or project .mcp.json)
+   3. Restart Claude Code
+   4. Run this skill again
 
-Use only the scaffold as input:
-- `images`: The scaffold via `filePath` pointing to `screenshots/01-[benefit-slug]/scaffold.png`
+   See: https://github.com/nicobailon/gemini-mcp for setup instructions.
+   ```
+   This never blocks the deterministic path — it only matters if the user opts into this step.
+2. Render one flat, breakout-free `compose.py` image as the reference, and send it to `edit_image` with a prompt such as:
+   ```
+   This is a scaffold for an App Store screenshot. Propose ONE creative concept for how to enhance it — background treatment, an optional breakout of a UI panel, and any supporting accents. This is for creative reference only; I will rebuild your concept by hand afterward, so prioritize an interesting, well-composed idea over pixel polish or photorealism.
+   ```
+3. Show the result to the user as inspiration, clearly labeled as a concept sketch, not a candidate.
+4. If they like something in it, translate what it did into `compose.py` flags — its background treatment → `--gradient`/colour choice, its breakout placement/scale → `--breakout` box/zoom/dy, any extra emphasis → `--badges`/`--callouts` — and render a new deterministic concept (back to Step 2/4). Never ship the Nano Banana pixels directly, even if the user likes them as-is — rebuild the same idea deterministically so the final asset stays pixel-faithful and reproducible.
 
-**First screenshot prompt template:**
-
-```
-This is a SCAFFOLD for an App Store screenshot — a rough layout showing the correct text, device frame position, and app screenshot placement. Your job is to transform this into a polished, professional App Store marketing screenshot that would make someone tap Download.
-
-KEEP EXACTLY AS-IS:
-- The headline text (wording, position, and approximate size)
-- The app screenshot shown on the phone screen
-- The background colour
-
-ENHANCE AND POLISH:
-- Replace the placeholder device frame with a photorealistic iPhone 15 Pro mockup — sleek, modern, with accurate proportions, reflections, and subtle shadows. The phone should look like a real device, not a flat rectangle. Keep the same position and size as the scaffold.
-- Refine the overall visual quality to look like a professional, high-budget App Store screenshot
-- OPTIONALLY add a PRIMARY breakout element — but ONLY if there is an obvious, visually compelling UI panel on the app screen that directly relates to the benefit headline. If nothing on screen clearly reinforces the headline, skip the breakout entirely — a clean screenshot with no breakout is better than a forced one. When you DO add a breakout, it MUST be an entire UI panel or grouped section (e.g., a complete card with its title and content, a full list section, a complete dialog/sheet) — never individual small elements like a single button, icon, or colour dot. IMPORTANT: The panel must stay at the SAME vertical position and orientation as where it appears on screen — do NOT rotate or angle it. The panel must be SCALED UP significantly — rendered much larger than it appears on the phone screen — so that it extends dramatically beyond BOTH left and right edges of the device frame, clearly overlapping the phone bezel on both sides, expanding to nearly the full width of the screenshot canvas. Do NOT keep the panel at its original on-screen size with just padding added around it. The panel itself must be enlarged. It should appear to float in front of the device at this larger scale — add a soft drop shadow beneath it to create depth and sell the hovering effect. The panel must look like it came from the app — same colours, same style, same content. Do NOT invent new elements.
-[PRIMARY BREAKOUT — if a relevant panel is obvious, describe the specific UI panel visible on screen and instruct it to extend beyond both edges of the device frame with a drop shadow, e.g., "The [panel name] card/row extends beyond both left and right edges of the device frame, overlapping the phone bezel on both sides, expanding to nearly the full screenshot width. It floats in front of the device with a soft drop shadow beneath it." If no panel clearly relates to the headline, write "No breakout — the app screen speaks for itself."]
-- Optionally add 1-2 secondary elements that reinforce the benefit and message of the screenshot — the kind of enhancements a professional graphic designer would add for impact. These are NOT from the app UI; they are creative additions that help clearly communicate what the screenshot is trying to portray to the user browsing the App Store. They should carry the message and support ASO conversion, but never at the cost of the overall design aesthetic. They must not compete with the primary breakout for attention.
-[SECONDARY ELEMENTS (optional) — describe 0-2 small supporting elements that tell the story, or "None needed"]
-- The background should be a clean, solid brand colour. Do NOT add glows, gradients, radial patterns, or light effects to the background. Keep it flat and bold.
-- Ensure the text is crisp, bold, and highly readable
-
-The final result should look like it was designed by a professional App Store screenshot agency — polished, high-converting, and visually striking. No watermarks, no extra text, no app store UI chrome.
-```
-
-#### Subsequent screenshots (after first is approved)
-
-Use **two images** as input:
-1. The **scaffold** for this benefit (`screenshots/0N-[benefit-slug]/scaffold.png`) — defines the layout
-2. The **first approved screenshot** (`screenshots/final-6.9/01-[first-benefit-slug].jpg`) — defines the style template
-
-**Subsequent screenshot prompt template:**
-
-```
-You are creating the next screenshot in an App Store screenshot SET. It must look like it belongs to the same series as the style reference.
-
-TWO REFERENCE IMAGES:
-- FIRST image: The SCAFFOLD — use this as the definitive guide for layout: headline text wording/position, device frame placement, and the app screenshot on screen. This defines WHAT this screenshot shows.
-- SECOND image: The STYLE TEMPLATE — this is an already-approved screenshot from the same set. Match its visual style EXACTLY: same device frame rendering (this is critical — the phone must look identical), same text treatment, same background style/accents, same level of polish, same overall aesthetic. This defines HOW this screenshot should look. When in doubt, copy the style template more closely rather than less.
-
-REQUIREMENTS:
-- CRITICAL: The device frame MUST match the style template EXACTLY — same photorealistic iPhone rendering, same size, same position, same shadows, same reflections, same edge treatment. Do NOT reinvent or reimagine the device frame. Reproduce it as closely as possible from the style template, only changing the screen contents.
-- Match the style template's text rendering style (same font treatment, same crispness, same visual weight)
-- Match the style template's background — clean, solid brand colour. No glows, gradients, radial patterns, or light effects.
-- Use the scaffold's layout for positioning (text, device, screenshot placement)
-- OPTIONALLY add a PRIMARY breakout element — but ONLY if there is an obvious, visually compelling UI panel on the app screen that directly relates to the benefit headline. If nothing clearly reinforces the headline, skip the breakout entirely. When used, it MUST be an entire UI panel or grouped section (NOT individual small elements like a single button or icon). The panel must stay at the SAME vertical position and orientation as on screen — do NOT rotate or angle it. The panel must be SCALED UP significantly — rendered much larger than it appears on the phone screen — so that it extends dramatically beyond BOTH left and right edges of the device frame, clearly overlapping the phone bezel on both sides, expanding to nearly the full width of the screenshot canvas. Do NOT keep the panel at its original on-screen size. The panel itself must be enlarged. It should appear to float in front of the device at this larger scale — add a soft drop shadow beneath it to create depth. The panel MUST come from the app screenshot — same colours, same style, same content. Do NOT invent new elements.
-[PRIMARY BREAKOUT — if a relevant panel is obvious, describe the specific UI panel visible on screen to pop out with a drop shadow, extending beyond both device frame edges. Otherwise write "No breakout — the app screen speaks for itself."]
-- Optionally add 1-2 secondary elements that reinforce the benefit and message of the screenshot — the kind of enhancements a professional graphic designer would add for impact. These are NOT from the app UI; they are creative additions that help clearly communicate what the screenshot is trying to portray to the user browsing the App Store. They should carry the message and support ASO conversion, but never at the cost of the overall design aesthetic. They must not compete with the primary breakout for attention.
-[SECONDARY ELEMENTS (optional) — 0-2 small supporting elements that tell the story, or "None needed"]
-- The breakout elements should match the style and energy level of those in the style template
-
-The result must look like it was designed alongside the style template as part of the same professional set. When placed side-by-side in the App Store, they should be visually cohesive — same quality, same aesthetic, same design language, just different content.
-
-No watermarks, no extra text, no app store UI chrome.
-```
-
-**IMPORTANT — Consistency enforcement**: The scaffold guarantees consistent layout. The style template guarantees consistent visual treatment. If Nano Banana changes the text, layout, or deviates from the style template, regenerate.
-
-**Step 3: Resize ALL 3 versions to exact target dimensions (MANDATORY)**
-
-Gemini does NOT reliably output at the target dimensions — it frequently outputs at a fraction of the input size (e.g., 704×1526 instead of 1290×2796). **Always resize all 3 outputs unconditionally.** Do not skip this step or assume the output is already the right size.
-
-```bash
-TARGET_W=1290 && TARGET_H=2796 && \
-for INPUT in screenshots/01-[benefit-slug]/v1.jpg screenshots/01-[benefit-slug]/v2.jpg screenshots/01-[benefit-slug]/v3.jpg; do
-  sips -z $TARGET_H $TARGET_W "$INPUT"
-  echo "Resized $INPUT to ${TARGET_W}x${TARGET_H}"
-done
-```
-
-Run this immediately after every batch of `edit_image` calls, before showing results to the user.
-
-**Step 4: Review all 3 versions with the user**
-
-Present all 3 **resized** versions (the `-resized.jpg` files) to the user using the Read tool. Never show the raw Nano Banana output — always show the post-processed versions.
-
-Label them clearly as **Version 1**, **Version 2**, and **Version 3** and ask the user to pick their favourite or request changes.
-
-**Step 5: Iterate if needed**
-
-If the user wants changes, use `edit_image` with **three images** as input:
-1. The **scaffold** (`scaffold.png`) — anchors the layout (text position, device placement, screenshot)
-2. The **style template** (the first approved screenshot from `screenshots/final-6.9/01-*.jpg`) — defines the device frame rendering and overall visual style that must be consistent across the entire set
-3. The **approved design** (the version the user liked best for this specific screenshot) — anchors the creative direction and breakout element approach
-
-The prompt should reference all three:
-```
-Here are three reference images, each with a distinct purpose:
-
-- FIRST image: The SCAFFOLD — use this as the definitive guide for layout: text position, device frame placement, and the app screenshot on screen. This defines WHERE everything goes.
-- SECOND image: The STYLE TEMPLATE — this is the first approved screenshot in the set. The device frame rendering, text treatment, and overall visual style MUST match this exactly. This defines HOW the screenshot should look to maintain consistency across the set.
-- THIRD image: The APPROVED DESIGN DIRECTION — this is the version the user liked best for this specific screenshot. Match its creative direction, breakout element approach, and secondary elements.
-
-Generate a new version that keeps the layout from the scaffold, the device frame and visual style from the style template, and the creative direction from the approved design, with these changes:
-[USER'S REQUESTED CHANGES]
-```
-
-This prevents drift (scaffold keeps layout locked), maintains set-wide consistency (style template keeps device frame and visual treatment identical), and preserves the creative direction the user already approved.
-
-When iterating, generate **3 versions in parallel** again (3 parallel `edit_image` calls in a single message). Then **immediately run the Step 3 crop/resize loop on all 3 in a single Bash call** before showing the user.
-
-Repeat until the user is happy.
-
-**Step 6: Copy approved version to `final-6.9/`**
-
-Once the user picks a winner, copy the resized version to `screenshots/final-6.9/`:
+**Step 6: Copy the chosen concept to `final-6.9/`**
 
 ```bash
 mkdir -p screenshots/final-6.9
-cp "screenshots/01-[benefit-slug]/v2-resized.jpg" "screenshots/final-6.9/01-[benefit-slug].jpg"
+cp "screenshots/01-[benefit-slug]/v3-breakout.png" "screenshots/final-6.9/01-[benefit-slug].png"
 ```
 
-This keeps `final-6.9/` clean — only approved, App Store-ready screenshots, one per benefit, numbered in order. Then move to the next benefit.
+This keeps `final-6.9/` clean — one approved, App Store-ready screenshot per benefit, numbered in order. Then move to the next benefit.
 
 ### Determine Brand Colour (Automatic)
 
@@ -659,7 +507,7 @@ Do NOT ask the user to pick a background colour. Instead, determine the best one
 
 Present your choice with brief reasoning (e.g., "Using **#7B2D8E** (deep purple) — it complements your app's colourful UI and stands out at thumbnail size"). The user can override if they want, but don't present it as a question.
 
-The brand colour is saved to memory in Step 0 of the generation process, before scaffolding begins.
+The brand colour is saved to memory in Step 0 of the generation process, before rendering begins.
 
 ### Output
 
@@ -667,24 +515,21 @@ Save generated screenshots to a `screenshots/` directory in the project root, or
 
 ```
 screenshots/
-  01-track-card-prices/       ← working versions for benefit 1
-    scaffold.png              ← deterministic compose.py output (text + frame + screenshot)
-    v1.jpg                    ← Nano Banana enhanced version 1
-    v1-resized.jpg            ← cropped/resized to App Store dimensions
-    v2.jpg
-    v2-resized.jpg
-    v3.jpg
-    v3-resized.jpg
-  02-search-any-card/         ← working versions for benefit 2
-    scaffold.png
-    v1.jpg
+  01-track-card-prices/          ← working concepts for benefit 1
+    v1-clean.png                 ← deterministic compose.py: flat bg, no breakout
+    v2-gradient.png               ← gradient bg, no breakout
+    v3-breakout.png               ← gradient + breakout panel
+    v4-badge.png                  ← breakout + badge/callout
+    nano-concept.jpg              ← (only if Step 5 fallback used) AI reference, never shipped
+  02-search-any-card/            ← working concepts for benefit 2
+    v1-clean.png
     ...
-  final-6.9/                  ← approved screenshots, ready to upload
-    01-track-card-prices.jpg
-    02-search-any-card.jpg
+  final-6.9/                     ← approved screenshots, ready to upload
+    01-track-card-prices.png
+    02-search-any-card.png
 ```
 
-The `final-6.9/` folder is the only one the user needs to care about — it contains one approved, App Store-ready screenshot per benefit, numbered in order. The benefit subfolders contain all working versions and can be ignored or deleted after the set is complete.
+The `final-6.9/` folder is the only one the user needs to care about — it contains one approved, App Store-ready screenshot per benefit, numbered in order. The benefit subfolders contain all working concepts and can be ignored or deleted after the set is complete. A `nano-concept.*` file only appears if the optional AI fallback (Step 5) was used — it must never end up in `final-6.9/`.
 
 Also tell the user exactly which App Store Connect display size slot each screenshot fits into.
 
@@ -692,15 +537,16 @@ Also tell the user exactly which App Store Connect display size slot each screen
 
 After each screenshot is generated (or after the full set is complete), save generation state to `.claude/aso-screenshots/aso_generation_state.md` in the project directory. Update `.claude/aso-screenshots/MEMORY.md` to reference this file. Create or update with:
 
-- **Brand colour**: name + hex code
+- **Brand + accent colour**: name + hex code
 - **Target display size**: e.g., iPhone 6.7" (1290x2796)
 - **For each generated screenshot**:
   - Benefit headline (ACTION VERB + DESCRIPTOR)
   - Benefit subfolder path (e.g., `screenshots/01-track-card-prices/`)
-  - Which version the user chose (v1, v2, or v3)
-  - Final file path (e.g., `screenshots/final-6.9/01-track-card-prices.jpg`)
+  - Which concept the user chose (v1-v4) and the `compose.py` flags used to produce it
+  - Final file path (e.g., `screenshots/final-6.9/01-track-card-prices.png`)
   - Simulator screenshot used (file path)
-  - Breakout elements described in the prompt
+  - Breakout box coordinates (if used), badge/callout text
+  - Whether the optional Nano Banana concept-exploration fallback was used for inspiration
   - Status: generated / approved / needs-redo
   - Any user feedback or change requests noted
 
@@ -714,7 +560,7 @@ Once ALL screenshots in the set are approved and saved to `final-6.9/`, generate
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots"
 
 python3 "$SKILL_DIR/showcase.py" \
-  --screenshots screenshots/final-6.9/01-*.jpg screenshots/final-6.9/02-*.jpg screenshots/final-6.9/03-*.jpg \
+  --screenshots screenshots/final-6.9/01-*.png screenshots/final-6.9/02-*.png screenshots/final-6.9/03-*.png \
   --github "github.com/adamlyttleapps" \
   --output screenshots/showcase.png
 ```
