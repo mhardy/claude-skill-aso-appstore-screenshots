@@ -128,20 +128,36 @@ After your analysis, present what you've learned and ask the user targeted quest
 
 Adapt your questions based on what you can and can't determine from the code. Don't ask questions the code already answers.
 
-### Step 3: Enrich with ASO keyword data (Astro, if available)
+### Step 3: Enrich with ASO keyword data
 
-Before drafting headlines, check whether you have access to the Astro MCP server (tryastro.app)
-in this session. Astro currently only runs on macOS, so on Windows/Linux it typically won't be
-connected.
+Before drafting headlines, get *some* real keyword signal rather than relying on general
+knowledge alone — "ASO" without this is just copywriting with extra steps.
 
-- **If available**: query it for the app's category — competitor keyword usage, high-intent
-  search terms, ranking difficulty — for the domain identified in Steps 1–2. Use this to inform
-  word choice in Step 4's headlines (prefer a high-value keyword phrasing over a merely clever
-  one when both are equally true to the benefit), not to override the benefit itself.
-- **If not available**: tell the user once, briefly — e.g. "Astro isn't reachable from this
-  environment (Mac-only), so I'll skip live keyword lookup and go on general ASO
-  conventions instead" — and continue immediately to Step 4. This is informational, never
-  blocking; don't ask the user to go set it up.
+**Preferred — Astro MCP (tryastro.app):** check whether you have access to it in this session.
+It currently only runs on macOS, so on Windows/Linux it typically won't be connected. If
+available, query it for the app's category — competitor keyword usage, high-intent search terms,
+ranking difficulty — for the domain identified in Steps 1–2.
+
+**Fallback — WebSearch:** if Astro isn't available, tell the user once, briefly — e.g. "Astro
+isn't reachable from this environment (Mac-only), so I'll use web search for keyword signal
+instead" — then use WebSearch (available on any platform) to ground word choice in something
+real:
+- Search the App Store for 3-5 direct competitors in this app's category; look at their titles,
+  subtitles, and any visible keyword-heavy copy for terms they're clearly targeting
+- Search for recent reviews or "best [category] apps" roundups that use specific phrases
+  real users/writers reach for — these tend to track actual search language better than a
+  feature name does
+- Note where competitors converge on the same term (signals it's expected/high-intent) vs. where
+  one is going for a gap (signals lower competition, possibly lower volume too)
+
+This is still not real search-volume/ranking data — say so if asked — but it's grounded in
+actual App Store listings and language instead of pattern-matched from training data.
+
+Either way, use whatever you find to inform word choice in Step 4's headlines (prefer a
+high-value keyword phrasing over a merely clever one when both are equally true to the benefit),
+not to override the benefit itself. This step is informational, never blocking — if both Astro
+and a useful WebSearch turn up nothing, say so plainly and continue to Step 4 on the benefit
+analysis alone rather than presenting a guess as if it were researched.
 
 ### Step 4: Draft the Core Benefits
 
@@ -152,7 +168,7 @@ benefits. Each benefit MUST:
 2. **Focus on what the USER gets**, not what the app does technically
 3. **Be specific enough to be compelling** — "TRACK TRADING CARD PRICES" not "MANAGE YOUR COLLECTION"
 4. **Answer the user's unspoken question**: "Why should I download this instead of scrolling past?"
-5. **Favor high-intent keywords when Astro data was available** — if two phrasings are equally true to the benefit, prefer the one that matches how people actually search, and say so in your reasoning
+5. **Favor high-intent keywords when Step 3 turned up real signal** (Astro or WebSearch) — if two phrasings are equally true to the benefit, prefer the one that matches how people actually search, and say so in your reasoning
 
 Present the benefits to the user in this format:
 
@@ -185,7 +201,7 @@ Create or update `aso_benefits.md` with:
 - The confirmed benefits list (in order), each with the full headline (ACTION VERB + BENEFIT DESCRIPTOR)
 - The target audience
 - Key app context (what the app does, niche, competitors mentioned)
-- Whether Astro ASO data was available and used, and any keyword reasoning it informed
+- Which keyword source was used (Astro / WebSearch fallback / neither) and any keyword reasoning it informed
 - Any reasoning or user preferences noted during refinement (e.g., "user prefers 'TRACK' over 'MONITOR'")
 
 This means the user won't need to redo benefit discovery in future conversations. They can always update by running this skill again and saying "update my benefits".
