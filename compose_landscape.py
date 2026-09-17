@@ -11,6 +11,8 @@ so key proportions are exactly as they appear in the app.
 import argparse
 from PIL import Image, ImageDraw, ImageFont
 
+from fonts import find_font
+
 CANVAS_W = 2796
 CANVAS_H = 1290
 
@@ -26,7 +28,7 @@ DESC_SIZE = 70
 VERB_DESC_GAP = 20
 DESC_LINE_GAP = 16
 
-FONT_PATH = "/Library/Fonts/SF-Pro-Display-Black.otf"
+FONT_PATH = find_font("SF-Pro-Display-Black.otf")
 
 
 def hex_to_rgb(h):
@@ -124,7 +126,7 @@ def compose(bg_hex, verb, desc, screenshot_path, output_path):
         canvas.paste(shadow, (SIDEBAR_W + i, 0), shadow)
 
     canvas.convert("RGB").save(output_path, "PNG")
-    print(f"✓ {output_path} ({CANVAS_W}×{CANVAS_H})")
+    print(f"OK {output_path} ({CANVAS_W}x{CANVAS_H})")
 
 
 def main():

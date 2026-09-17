@@ -14,6 +14,8 @@ source, creating a continuous panoramic effect when swiped in the App Store.
 import argparse
 from PIL import Image, ImageDraw, ImageFont
 
+from fonts import find_font
+
 CANVAS_W = 1290
 CANVAS_H = 2796
 
@@ -31,7 +33,7 @@ VERB_DESC_GAP = 28
 DESC_LINE_GAP = 18
 MAX_TEXT_W = int(CANVAS_W * 0.88)  # 1135px
 
-FONT_PATH = "/Library/Fonts/SF-Pro-Display-Black.otf"
+FONT_PATH = find_font("SF-Pro-Display-Black.otf")
 
 
 def hex_to_rgb(h):
@@ -122,7 +124,7 @@ def compose(bg_hex, verb, desc, screenshot_path, keyboard_offset, output_path):
         canvas.paste(row, (0, BOTTOM_Y - 30 + i), row)
 
     canvas.convert("RGB").save(output_path, "PNG")
-    print(f"✓ {output_path} ({CANVAS_W}×{CANVAS_H})")
+    print(f"OK {output_path} ({CANVAS_W}x{CANVAS_H})")
 
 
 def main():

@@ -86,7 +86,7 @@ def generate():
 
     out = "assets/device_frame.png"
     frame.save(out, "PNG")
-    print(f"✓ {out} ({DEVICE_W}×{DEVICE_H})")
+    print(f"OK {out} ({DEVICE_W}x{DEVICE_H})")
     print(f"  BEZEL={BEZEL}, SCREEN_W={SCREEN_W}, SCREEN_H={SCREEN_H}")
     print(f"  SCREEN_CORNER_R={SCREEN_CORNER_R}")
 

@@ -8,11 +8,13 @@ side-by-side on a white background with an optional GitHub link at the bottom.
 import argparse
 from PIL import Image, ImageDraw, ImageFont
 
+from fonts import find_font
+
 # ── Layout ──────────────────────────────────────────────────────────
 PADDING = 60
 GAP = 40
 BOTTOM_BAR_H = 100
-FONT_PATH = "/Library/Fonts/SF-Pro-Display-Regular.otf"
+FONT_PATH = find_font("SF-Pro-Display-Regular.otf")
 FONT_SIZE_MAX = 48
 FONT_SIZE_MIN = 16
 TEXT_COLOUR = "#000000"
@@ -73,7 +75,7 @@ def create_showcase(screenshots, output_path, github_url=None):
         )
 
     canvas.save(output_path, "PNG")
-    print(f"✓ {output_path} ({total_w}×{total_h})")
+    print(f"OK {output_path} ({total_w}x{total_h})")
 
 
 def main():
