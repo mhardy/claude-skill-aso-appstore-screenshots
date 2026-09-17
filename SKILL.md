@@ -128,14 +128,31 @@ After your analysis, present what you've learned and ask the user targeted quest
 
 Adapt your questions based on what you can and can't determine from the code. Don't ask questions the code already answers.
 
-### Step 3: Draft the Core Benefits
+### Step 3: Enrich with ASO keyword data (Astro, if available)
 
-Based on your analysis and the user's input, draft 3-5 core benefits. Each benefit MUST:
+Before drafting headlines, check whether you have access to the Astro MCP server (tryastro.app)
+in this session. Astro currently only runs on macOS, so on Windows/Linux it typically won't be
+connected.
+
+- **If available**: query it for the app's category — competitor keyword usage, high-intent
+  search terms, ranking difficulty — for the domain identified in Steps 1–2. Use this to inform
+  word choice in Step 4's headlines (prefer a high-value keyword phrasing over a merely clever
+  one when both are equally true to the benefit), not to override the benefit itself.
+- **If not available**: tell the user once, briefly — e.g. "Astro isn't reachable from this
+  environment (Mac-only), so I'll skip live keyword lookup and go on general ASO
+  conventions instead" — and continue immediately to Step 4. This is informational, never
+  blocking; don't ask the user to go set it up.
+
+### Step 4: Draft the Core Benefits
+
+Based on your analysis, the user's input, and any ASO keyword data from Step 3, draft 3-5 core
+benefits. Each benefit MUST:
 
 1. **Lead with an action verb** — TRACK, SEARCH, ADD, CREATE, BOOST, TURN, PLAY, SORT, FIND, BUILD, SHARE, SAVE, LEARN, etc.
 2. **Focus on what the USER gets**, not what the app does technically
 3. **Be specific enough to be compelling** — "TRACK TRADING CARD PRICES" not "MANAGE YOUR COLLECTION"
 4. **Answer the user's unspoken question**: "Why should I download this instead of scrolling past?"
+5. **Favor high-intent keywords when Astro data was available** — if two phrasings are equally true to the benefit, prefer the one that matches how people actually search, and say so in your reasoning
 
 Present the benefits to the user in this format:
 
@@ -148,7 +165,7 @@ Here are the core benefits I'd recommend for your screenshots:
 ...
 ```
 
-### Step 4: Collaborate and Refine
+### Step 5: Collaborate and Refine
 
 DO NOT proceed until the user explicitly confirms the benefits. This is an iterative process:
 
@@ -157,7 +174,7 @@ DO NOT proceed until the user explicitly confirms the benefits. This is an itera
 - Explain your reasoning — why a particular verb or phrasing converts better
 - The user has final say, but push back (politely) if they're choosing something generic over something specific
 
-### Step 5: Save to Memory
+### Step 6: Save to Memory
 
 Once the user confirms the final benefits, save them to the **project directory** at `.claude/aso-screenshots/aso_benefits.md` (create the directory if it doesn't exist). Also create or update `.claude/aso-screenshots/MEMORY.md` as an index. This keeps memory inside the repo so it can be committed to git and accessed from any machine.
 
@@ -168,6 +185,7 @@ Create or update `aso_benefits.md` with:
 - The confirmed benefits list (in order), each with the full headline (ACTION VERB + BENEFIT DESCRIPTOR)
 - The target audience
 - Key app context (what the app does, niche, competitors mentioned)
+- Whether Astro ASO data was available and used, and any keyword reasoning it informed
 - Any reasoning or user preferences noted during refinement (e.g., "user prefers 'TRACK' over 'MONITOR'")
 
 This means the user won't need to redo benefit discovery in future conversations. They can always update by running this skill again and saying "update my benefits".
@@ -180,7 +198,13 @@ Once benefits are confirmed, you need simulator screenshots to place inside the 
 
 ### Step 1: Collect Simulator Screenshots
 
-Ask the user to provide their simulator screenshots. They can provide:
+First check the default location, `Creative/Screenshots/` (relative to the project root) — this
+is the established convention across these projects for raw device/simulator captures. If it
+exists and has image files, list them and confirm with the user this is the right set rather
+than asking from scratch.
+
+If it doesn't exist, or the user wants a different source, ask the user to provide their
+simulator screenshots. They can provide:
 - A directory path containing the screenshots (e.g., `./simulator-screenshots/`)
 - Individual file paths
 - Glob patterns (e.g., `~/Desktop/Simulator*.png`)
@@ -271,9 +295,11 @@ Confirm the output directory — ask the user where they want screenshots saved:
 
 ```
 Where should I save the generated screenshots?
-  → Press Enter for default: ./screenshots/ (inside your project directory)
+  → Press Enter for default: Creative/AppStore/Generated (inside your project directory)
   → Or provide a custom path, e.g. ~/Dropbox/MyApp/Screenshots
 ```
+
+Name it `Generated`, not `Screenshots` — a project's `Screenshots/` (or `Creative/Screenshots/`) directory is typically reserved for raw captures taken directly on a device/simulator, and reusing that name for composited output is confusing.
 
 Save the confirmed output directory as `SCREENSHOTS_DIR` and use it as the base path for ALL file output from this point forward — pre-resized inputs, rendered concepts, and the `final-6.9/` folder. If the user provides a relative path, resolve it relative to the project root. If the directory doesn't exist, create it.
 
@@ -432,21 +458,21 @@ Use the Read tool to look closely at the paired simulator screenshot. Identify w
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
-mkdir -p screenshots/01-[benefit-slug] && \
+mkdir -p "$SCREENSHOTS_DIR/01-[benefit-slug]" && \
 python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
-  --screenshot [path] --output screenshots/01-[benefit-slug]/v1-clean.png && \
+  --screenshot [path] --output "$SCREENSHOTS_DIR/01-[benefit-slug]/v1-clean.png" && \
 python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
   --screenshot [path] --gradient \
-  --output screenshots/01-[benefit-slug]/v2-gradient.png && \
+  --output "$SCREENSHOTS_DIR/01-[benefit-slug]/v2-gradient.png" && \
 python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
   --screenshot [path] --gradient \
   --breakout '{"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0}' \
-  --output screenshots/01-[benefit-slug]/v3-breakout.png && \
+  --output "$SCREENSHOTS_DIR/01-[benefit-slug]/v3-breakout.png" && \
 python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
   --screenshot [path] --gradient --accent "[ACCENT HEX]" \
   --breakout '{"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0}' \
   --badges '[{"text":"...","xy":[x,y],"anchor":"tl"}]' \
-  --output screenshots/01-[benefit-slug]/v4-badge.png
+  --output "$SCREENSHOTS_DIR/01-[benefit-slug]/v4-badge.png"
 ```
 
 Skip the breakout/badge calls (variations 3–4) entirely if Step 1 found no candidate — render two background-only variations instead, e.g. a second with a callout on a smaller detail.
@@ -485,8 +511,8 @@ Only reach for this if the user isn't happy with any deterministic concept and w
 **Step 6: Copy the chosen concept to `final-6.9/`**
 
 ```bash
-mkdir -p screenshots/final-6.9
-cp "screenshots/01-[benefit-slug]/v3-breakout.png" "screenshots/final-6.9/01-[benefit-slug].png"
+mkdir -p "$SCREENSHOTS_DIR/final-6.9"
+cp "$SCREENSHOTS_DIR/01-[benefit-slug]/v3-breakout.png" "$SCREENSHOTS_DIR/final-6.9/01-[benefit-slug].png"
 ```
 
 This keeps `final-6.9/` clean — one approved, App Store-ready screenshot per benefit, numbered in order. Then move to the next benefit.
@@ -511,10 +537,10 @@ The brand colour is saved to memory in Step 0 of the generation process, before 
 
 ### Output
 
-Save generated screenshots to a `screenshots/` directory in the project root, organised by benefit subfolder:
+Save generated screenshots to `SCREENSHOTS_DIR` (confirmed in Prerequisites Check, default `Creative/AppStore/Generated`), organised by benefit subfolder. Name it `Generated`, never `Screenshots` — that name is reserved for raw device/simulator captures elsewhere in the project.
 
 ```
-screenshots/
+Creative/AppStore/Generated/
   01-track-card-prices/          ← working concepts for benefit 1
     v1-clean.png                 ← deterministic compose.py: flat bg, no breakout
     v2-gradient.png               ← gradient bg, no breakout
@@ -541,9 +567,9 @@ After each screenshot is generated (or after the full set is complete), save gen
 - **Target display size**: e.g., iPhone 6.7" (1290x2796)
 - **For each generated screenshot**:
   - Benefit headline (ACTION VERB + DESCRIPTOR)
-  - Benefit subfolder path (e.g., `screenshots/01-track-card-prices/`)
+  - Benefit subfolder path (e.g., `Creative/AppStore/Generated/01-track-card-prices/`)
   - Which concept the user chose (v1-v4) and the `compose.py` flags used to produce it
-  - Final file path (e.g., `screenshots/final-6.9/01-track-card-prices.png`)
+  - Final file path (e.g., `Creative/AppStore/Generated/final-6.9/01-track-card-prices.png`)
   - Simulator screenshot used (file path)
   - Breakout box coordinates (if used), badge/callout text
   - Whether the optional Nano Banana concept-exploration fallback was used for inspiration
@@ -560,9 +586,9 @@ Once ALL screenshots in the set are approved and saved to `final-6.9/`, generate
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots"
 
 python3 "$SKILL_DIR/showcase.py" \
-  --screenshots screenshots/final-6.9/01-*.png screenshots/final-6.9/02-*.png screenshots/final-6.9/03-*.png \
+  --screenshots "$SCREENSHOTS_DIR"/final-6.9/01-*.png "$SCREENSHOTS_DIR"/final-6.9/02-*.png "$SCREENSHOTS_DIR"/final-6.9/03-*.png \
   --github "github.com/adamlyttleapps" \
-  --output screenshots/showcase.png
+  --output "$SCREENSHOTS_DIR/showcase.png"
 ```
 
 Show the showcase image to the user using the Read tool. This is a shareable preview of the full screenshot set.
