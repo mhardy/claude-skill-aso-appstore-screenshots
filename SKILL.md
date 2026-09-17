@@ -204,6 +204,10 @@ benefits. Each benefit MUST:
 4. **Answer the user's unspoken question**: "Why should I download this instead of scrolling past?"
 5. **Favor high-intent keywords when Step 3 turned up real signal** (Astro or WebSearch) — if two phrasings are equally true to the benefit, prefer the one that matches how people actually search, and say so in your reasoning
 
+The verb/benefit examples above are capitalized here for emphasis when brainstorming — the
+rendered screenshot uses sentence case, not forced uppercase (see Screenshot Format
+Specification's Typography section). Draft benefits in whatever case you intend to render.
+
 Present the benefits to the user in this format:
 
 ```
@@ -453,10 +457,11 @@ Use two compose scripts depending on the screen type:
 Each screenshot follows this exact high-converting ASO format. **Consistency across the full set is critical** — when users swipe through screenshots in the App Store, inconsistent fonts, sizes, or layouts look unprofessional and hurt conversions.
 
 **Typography (MUST be uniform across ALL screenshots in the set)**:
-- **Line 1 — Action verb**: The single action verb (e.g., "TRACK", "SEARCH", "BOOST"). This is the BIGGEST, boldest text on the screenshot. White, uppercase, center-aligned. Same font, same size, same weight on every screenshot.
-- **Line 2 — Benefit descriptor**: The rest of the headline (e.g., "TRADING CARD PRICES", "ANY VERSE IN SECONDS"). Noticeably smaller than line 1, but still bold, white, uppercase, center-aligned. Same font, same size, same weight on every screenshot.
-- **Font**: Heavy/black weight sans-serif (e.g., SF Pro Display Black, Inter Black, or similar high-impact font). Not just bold — heavy/black weight for maximum impact.
-- **Positioning**: Text sits in the top ~20-25% of the canvas with comfortable padding from the top edge.
+- **Line 1 — Action verb**: The single action verb (e.g., "Automatic", "Search", "Boost"). This is the BIGGEST, boldest text on the screenshot, center-aligned. Rendered in the brand **accent colour** (`compose.py --accent`), not white — this is what visually separates the verb from the rest of the headline. Case is preserved as typed — sentence case (e.g., "Automatic") reads better than forced uppercase; don't uppercase it. Same font, same size, same weight on every screenshot.
+- **Line 2 — Benefit descriptor**: The rest of the headline (e.g., "Photo Organizer", "Any Verse in Seconds"). Noticeably smaller than line 1, still bold, but **white**, center-aligned, case preserved as typed. Same font, same size, same weight on every screenshot.
+- **Optional subtitle**: A smaller descriptor sentence below the headline (`compose.py --subtitle`), e.g. "Your camera roll, sorted into trips and days the moment you open it." — medium weight, translucent white (~65% opacity), center-aligned, wraps to 1-2 lines. Use this when the verb+descriptor alone doesn't fully land the benefit; skip it when they already do. Font size is `SUBTITLE_SIZE` in `compose.py` — **62px**, picked by direct visual comparison across 54/56/58/62/64/68/72px on a real render (see comment above the constant). 62 was the smallest size that stopped reading as "too small," while staying clearly secondary to `DESC_SIZE` (124px) with no line-wrap penalty (73px+ starts wrapping an extra line). This is a human-legibility call only — not an OCR/indexing target.
+- **Font**: Heavy/black weight sans-serif for verb/descriptor (e.g., SF Pro Display Black, Inter Black), medium weight for the optional subtitle. Not just bold — heavy/black weight for maximum impact on the headline.
+- **Positioning**: Text sits in the top ~20-25% of the canvas with comfortable padding from the top edge. The device frame shifts down automatically if a long headline/subtitle combination would otherwise collide with it — don't manually re-shorten copy to dodge a collision, `compose.py` handles this.
 - **Horizontal safe area**: Keep text within the centre ~70% of the canvas width — at least 15% padding from each edge. This ensures headlines look balanced and aren't uncomfortably close to the frame edges. If a headline is too long, break it across more lines rather than extending to the edges.
 
 **Device frame**:
@@ -506,20 +511,25 @@ Use the Read tool to look closely at the paired simulator screenshot. Identify w
 
 **IMPORTANT — batch all 4 renders into a single Bash call** chained with `&&` so the user only needs to approve once:
 
+**Always pass `--accent`** (even on the flat/clean concept) — the verb renders in the accent
+colour, not white, so leaving it off relies on a white fallback that won't match the brand.
+`--subtitle` is optional on any variation; include it when the verb+desc alone doesn't fully land
+the benefit.
+
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
 mkdir -p "$SCREENSHOTS_DIR/01-[benefit-slug]" && \
-python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --accent "[ACCENT HEX]" --verb "[Verb]" --desc "[Desc]" \
   --screenshot [path] --output "$SCREENSHOTS_DIR/01-[benefit-slug]/v1-clean.png" && \
-python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --accent "[ACCENT HEX]" --verb "[Verb]" --desc "[Desc]" \
   --screenshot [path] --gradient \
   --output "$SCREENSHOTS_DIR/01-[benefit-slug]/v2-gradient.png" && \
-python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --accent "[ACCENT HEX]" --verb "[Verb]" --desc "[Desc]" \
   --screenshot [path] --gradient \
   --breakout '{"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0}' \
   --output "$SCREENSHOTS_DIR/01-[benefit-slug]/v3-breakout.png" && \
-python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --verb "[VERB]" --desc "[DESC]" \
-  --screenshot [path] --gradient --accent "[ACCENT HEX]" \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --accent "[ACCENT HEX]" --verb "[Verb]" --desc "[Desc]" \
+  --screenshot [path] --gradient \
   --breakout '{"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0}' \
   --badges '[{"text":"...","xy":[x,y],"anchor":"tl"}]' \
   --output "$SCREENSHOTS_DIR/01-[benefit-slug]/v4-badge.png"
@@ -534,6 +544,81 @@ Show all 4 renders with the Read tool. Label them clearly (Clean / Gradient / Br
 **Step 4: Iterate**
 
 Because every visual choice is a `compose.py` flag, iteration is just re-running the script with adjusted arguments: move a badge's `xy`, change the breakout's `zoom`/`dy`, swap `--accent`, toggle `--gradient`, reword `--callouts` text. Batch multiple tweaks into one Bash call, the same as Step 2. This is fast and cheap enough to iterate live with the user rather than waiting on generations. Repeat until they're happy.
+
+**Gotcha — rewording `--verb`/`--desc`/`--subtitle` for style can silently undo Step 3's keyword work.** It's easy to rewrite the headline for punchiness/legibility (a shorter verb, a less redundant subtitle) without re-checking it against the confirmed high-value keyword phrase from Benefit Discovery Step 3. A shorter, punchier verb+desc pair can accidentally *drop* an exact-match winnable keyword phrase from the biggest/boldest text and push it down into the smaller subtitle (or out entirely) — weakening the screenshot's ASO value even though it reads better. Before finalizing any headline reword, re-read the keyword phrase recorded for this benefit in `aso_benefits.md` Step 3 and confirm the new verb+desc still contains the exact-match phrase (or the closest true variant) in the large text, not just in the subtitle. If punchier phrasing and keyword-exact phrasing genuinely conflict, say so explicitly and let the user choose, rather than quietly optimizing for style alone.
+
+**Gotcha — badge/breakout `xy` is NOT independent of the headline.** `compose.py` pushes the
+device (and everything anchored to it — the breakout card, and any badge you meant to sit near
+it) down automatically when a long headline or `--subtitle` needs more vertical space
+(`device_y` is computed dynamically, not the fixed `DEVICE_Y` constant). A badge `xy` you tuned
+for one headline will collide with a taller headline/subtitle on the next edit — it does NOT
+follow the device down on its own. Before finalizing a badge position, get the actual `device_y`
+for that exact verb/desc/subtitle combo rather than reusing a value from a previous version:
+
+```bash
+python3 -c "
+import compose
+from PIL import Image, ImageDraw, ImageFont
+verb, desc, subtitle = '[VERB]', '[DESC]', '[SUBTITLE or None]'
+vf = compose.fit_font(verb, compose.MAX_VERB_W, compose.VERB_SIZE_MAX, compose.VERB_SIZE_MIN)
+df = ImageFont.truetype(compose.FONT_BLACK, compose.DESC_SIZE)
+d = ImageDraw.Draw(Image.new('RGBA', (1,1)))
+y = compose.draw_centered(d, 200, verb, vf, dry_run=True) + compose.VERB_DESC_GAP
+bottom = compose.draw_centered(d, y, desc, df, max_w=compose.MAX_TEXT_W, dry_run=True)
+if subtitle and subtitle != 'None':
+    sf = ImageFont.truetype(compose.FONT_MEDIUM, compose.SUBTITLE_SIZE)
+    bottom = compose.draw_centered(d, bottom + compose.SUBTITLE_GAP, subtitle, sf, max_w=compose.MAX_TEXT_W, dry_run=True, line_gap=compose.SUBTITLE_LINE_GAP)
+print('device_y =', max(compose.DEVICE_Y, bottom + compose.MIN_TEXT_DEVICE_GAP))
+"
+```
+
+A badge meant to sit at/near the top of the device or breakout card should use roughly
+`device_y + 5` to `device_y + 70` depending on the exact effect wanted (right at the frame edge
+vs. hanging slightly above it) — derive it from the real `device_y`, don't guess or reuse a
+number from a different headline.
+
+**A badge next to a breakout card should be pinned to its corner, not floating independently.**
+Visually, a badge that sits in the gap between the subtitle and the phone reads as disconnected;
+one that straddles the breakout card's top-left corner (like a ribbon/tag) reads as intentional —
+this is what the approved reference does. Get the card's actual placed box the same way (don't
+eyeball it):
+
+```bash
+python3 -c "
+import compose
+from PIL import Image
+shot = Image.open('[SCREENSHOT PATH]').convert('RGB')
+device_x = (compose.CANVAS_W - compose.DEVICE_W) // 2
+dev, body_mask, screen_rect = compose.device_layer(shot, device_x, [DEVICE_Y FROM ABOVE], compose.DEVICE_W)
+canvas = Image.new('RGBA', (compose.CANVAS_W, compose.CANVAS_H), (0,0,0,0))
+canvas, placed = compose.breakout_card(canvas, shot, ([BOX]), screen_rect, zoom=[ZOOM], dy=0)
+print('card top-left:', placed[0], placed[1])
+"
+```
+
+Then set the badge `xy` to roughly `(cardLeft + 7, cardTop - badgeHeight*0.6)` — badge height is
+`size*1.02 + 34` (default `size=42` → height ≈77), so the badge visually straddles the card's
+top border rather than sitting fully above or fully inside it.
+
+**Which corner: `compose.py`'s `badge()` already supports all four via `anchor`** (`"tl"`,
+`"tr"`, `"bl"`, `"br"` — `anchor` shifts `x -= bw` when it ends in `"r"`, and `y -= bh` when it
+starts with `"b"`), it's just not always deliberately chosen. Default to `tl` (top-left) as the
+reference case above. Mirror the formula for the others rather than eyeballing:
+
+- **`tr`** (top-right): `xy = (cardRight - 7, cardTop - badgeHeight*0.6)` — the given `x` is the
+  badge's *right* edge under this anchor, so subtract 7 from `cardRight` the same way `tl` adds 7
+  to `cardLeft`.
+- **`bl`** / **`br`**: same `x` rule as `tl`/`tr`, but anchor at the card's *bottom* edge instead —
+  use `cardBottom + badgeHeight*0.6` for `y` (mirrors `-0.6` around the border instead of `+0.6`).
+
+Switch away from the `tl` default when the top-left corner of the card (and whatever's visible
+behind/above it on the device screen at that position — e.g. a tab pill, a status icon) is where
+the card's own key content sits (a face, a number, a label) that the badge would cover, or when a
+prior screenshot in the set already used `tl` and a touch of variety helps the set read as
+intentional rather than templated. Once picked for a screenshot, record the corner and the exact
+`xy` used in `aso_generation_state.md` (see Save to Memory below) — it's derived from `device_y`
+and the card's placed box, both of which shift per headline/breakout, so it can't be reliably
+reconstructed later from the image alone.
 
 **Step 5 (optional): Concept exploration via Nano Banana Pro**
 

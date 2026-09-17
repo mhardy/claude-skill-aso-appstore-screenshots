@@ -13,6 +13,7 @@ screenshot stays pixel-faithful.
 """
 
 import argparse
+import colorsys
 import json
 import math
 import os
@@ -43,11 +44,19 @@ VERB_SIZE_MIN = 150
 DESC_SIZE = 124
 VERB_DESC_GAP = 20
 DESC_LINE_GAP = 24
+# 62px chosen by direct visual comparison at 54/56/58/62/64/68/72 — the
+# smallest size that no longer reads as "too small," while still staying
+# clearly secondary to DESC_SIZE (124px) with no line-wrap penalty. This is
+# a human-legibility call only, not an OCR/indexing target.
+SUBTITLE_SIZE = 62
+SUBTITLE_GAP = 28
+SUBTITLE_LINE_GAP = int(SUBTITLE_SIZE * 0.32)
 MAX_TEXT_W = int(CANVAS_W * 0.92)
 MAX_VERB_W = int(CANVAS_W * 0.92)
 
 FONT_BLACK = find_font("SF-Pro-Display-Black.otf")
 FONT_HEAVY = find_font("SF-Pro-Display-Heavy.otf")
+FONT_MEDIUM = find_font("SF-Pro-Display-Medium.otf")
 FONT_PATH = FONT_BLACK               # back-compat alias
 
 
@@ -61,11 +70,40 @@ def darken(rgb, factor):
     return tuple(round(c * factor) for c in rgb)
 
 
+def lighten(rgb, factor):
+    return tuple(round(c + (255 - c) * factor) for c in rgb)
+
+
 def text_colour_for(rgb):
     """Dark text on light pills, white text on dark pills."""
     r, g, b = rgb
     luminance = 0.299 * r + 0.587 * g + 0.114 * b
     return "#101010" if luminance > 150 else "#FFFFFF"
+
+
+def verb_colour_for(bg_hex):
+    """A brighter, same-hue version of the background for the verb headline,
+    so it reads as part of the same glow rather than a jarring contrast
+    colour. This is deliberately NOT --accent — accent is reserved for
+    badges/callouts, which want the opposite: a colour that pops against the
+    artwork, not one that blends with the background.
+
+    A linear blend toward white desaturates as it brightens and ends up
+    pastel/washed out. Working in HSV instead — push value to (near) full
+    brightness while only mildly reducing saturation, same hue — matches how
+    a genuinely vivid tint of a colour actually looks (e.g. #E8590C's vivid
+    tint is close to #FF8A3D, not a pale salmon)."""
+    r, g, b = hex_to_rgb(bg_hex)
+    h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+    if v > 0.92:
+        # already near-full brightness (a light background) — darken instead
+        # of trying to brighten further, same idea in the other direction
+        v *= 0.55
+    else:
+        v = min(1.0, v + (1.0 - v) * 0.9)
+        s *= 0.8
+    r2, g2, b2 = colorsys.hsv_to_rgb(h, s, v)
+    return "#%02X%02X%02X" % (round(r2 * 255), round(g2 * 255), round(b2 * 255))
 
 
 # ---------------------------------------------------------------- text
@@ -97,15 +135,18 @@ def fit_font(text, max_w, size_max, size_min, font_path=None):
     return ImageFont.truetype(font_path, size_min)
 
 
-def draw_centered(draw, y, text, font, max_w=None):
-    lines = word_wrap(draw, text, font, max_w) if max_w else [text]
+def draw_centered(draw, y, text, font, max_w=None, dry_run=False, fill="white",
+                  line_gap=None):
+    lines = word_wrap(draw, text, max_w=max_w, font=font) if max_w else [text]
+    gap = DESC_LINE_GAP if line_gap is None else line_gap
     for line in lines:
         bbox = draw.textbbox((0, 0), line, font=font)
         h = bbox[3] - bbox[1]
         # anchor="mt" for pixel-perfect horizontal centering; adjust y by
         # bbox[1] offset so the text's visual top lands at the intended y
-        draw.text((CANVAS_W // 2, y - bbox[1]), line, fill="white", font=font, anchor="mt")
-        y += h + DESC_LINE_GAP
+        if not dry_run:
+            draw.text((CANVAS_W // 2, y - bbox[1]), line, fill=fill, font=font, anchor="mt")
+        y += h + gap
     return y
 
 
@@ -166,15 +207,21 @@ def flat_canvas(bg_hex):
     return Image.new("RGBA", (CANVAS_W, CANVAS_H), (*hex_to_rgb(bg_hex), 255))
 
 
-def gradient_canvas(bg_hex):
-    """Dark radial-glow gradient built from the brand colour — richer than a
-    flat fill, used when --gradient is passed instead of a solid background."""
+def gradient_canvas(bg_hex, accent_hex=None):
+    """Deep, mostly-dark gradient with the brand colour concentrated in a few
+    glow zones rather than washed across the whole canvas — matches the
+    approved reference (EventRoll's hand-tuned 'sunset' background): the base
+    is near-black almost everywhere, brightness comes from screen-blended
+    glows at specific positions, not from a bright overall fill."""
     base = hex_to_rgb(bg_hex)
-    c = vgrad((CANVAS_W, CANVAS_H), darken(base, 0.32), darken(base, 0.07))
-    c = screen_blend(c, radial_glow((CANVAS_W, CANVAS_H), CANVAS_W * .5, CANVAS_H * .52,
-                                    CANVAS_W * .95, CANVAS_H * .40, base, .55))
-    c = screen_blend(c, radial_glow((CANVAS_W, CANVAS_H), CANVAS_W * .5, CANVAS_H * .40,
-                                    CANVAS_W * .62, CANVAS_H * .22, base, .35, 2.6))
+    c = vgrad((CANVAS_W, CANVAS_H), darken(base, 0.14), darken(base, 0.03))
+    c = screen_blend(c, radial_glow((CANVAS_W, CANVAS_H), CANVAS_W * .5, CANVAS_H * .54,
+                                    CANVAS_W * .95, CANVAS_H * .40, base, .85))
+    c = screen_blend(c, radial_glow((CANVAS_W, CANVAS_H), CANVAS_W * .5, CANVAS_H * .42,
+                                    CANVAS_W * .62, CANVAS_H * .22, base, .58))
+    if accent_hex:
+        c = screen_blend(c, radial_glow((CANVAS_W, CANVAS_H), CANVAS_W * .16, CANVAS_H * .92,
+                                        CANVAS_W * .60, CANVAS_H * .30, hex_to_rgb(accent_hex), .45))
     return c
 
 
@@ -332,30 +379,57 @@ def callout(canvas, text, anchor_xy, label_xy, accent_hex, side="left", size=44)
 
 # ---------------------------------------------------------------- page
 def compose(bg_hex, verb, desc, screenshot_path, output_path, gradient=False,
-            accent_hex=None, breakout=None, badges=(), callouts=()):
+            accent_hex=None, breakout=None, badges=(), callouts=(), subtitle=None):
+    # accent_hex is for badges/callouts ONLY (a contrast colour meant to pop
+    # against the artwork) — the verb uses verb_colour_for(bg_hex) instead
+    # (a tint of the background), so the two can be tuned independently.
     accent_hex = accent_hex or bg_hex
+    verb_hex = verb_colour_for(bg_hex)
 
     # ── 1. Canvas ───────────────────────────────────────────────────
-    canvas = (gradient_canvas(bg_hex) if gradient else flat_canvas(bg_hex))
+    canvas = (gradient_canvas(bg_hex, accent_hex) if gradient else flat_canvas(bg_hex))
     draw = ImageDraw.Draw(canvas)
 
-    # ── 2. Headline text at fixed position ───────────────────────────
-    verb_font = fit_font(verb.upper(), MAX_VERB_W, VERB_SIZE_MAX, VERB_SIZE_MIN)
+    # ── 2. Headline text — case preserved as typed (not forced uppercase);
+    #      verb renders as a tint of the background (see verb_hex above),
+    #      desc in white. Measure first so a 3-line wrap (or an added
+    #      subtitle) can't collide with the device frame, then draw at the
+    #      same fixed top (200) ─────────────────────────────────────────
+    verb_font = fit_font(verb, MAX_VERB_W, VERB_SIZE_MAX, VERB_SIZE_MIN)
     desc_font = ImageFont.truetype(FONT_BLACK, DESC_SIZE)
+    subtitle_font = ImageFont.truetype(FONT_MEDIUM, SUBTITLE_SIZE)
 
-    y = 200
-    y = draw_centered(draw, y, verb.upper(), verb_font)
+    TEXT_TOP = 200
+    dummy = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    y = draw_centered(dummy, TEXT_TOP, verb, verb_font, dry_run=True)
     y += VERB_DESC_GAP
-    draw_centered(draw, y, desc.upper(), desc_font, max_w=MAX_TEXT_W)
+    text_bottom = draw_centered(dummy, y, desc, desc_font, max_w=MAX_TEXT_W, dry_run=True)
+    if subtitle:
+        text_bottom = draw_centered(dummy, text_bottom + SUBTITLE_GAP, subtitle, subtitle_font,
+                                    max_w=MAX_TEXT_W, dry_run=True, line_gap=SUBTITLE_LINE_GAP)
+    device_y = max(DEVICE_Y, text_bottom + MIN_TEXT_DEVICE_GAP)
+
+    y = draw_centered(draw, TEXT_TOP, verb, verb_font, fill=verb_hex)
+    y += VERB_DESC_GAP
+    y = draw_centered(draw, y, desc, desc_font, max_w=MAX_TEXT_W)
+    if subtitle:
+        draw_centered(draw, y + SUBTITLE_GAP, subtitle, subtitle_font, max_w=MAX_TEXT_W,
+                     fill=(255, 255, 255, 165), line_gap=SUBTITLE_LINE_GAP)
 
     # ── 3. Screenshot + real device frame ────────────────────────────
     device_x = (CANVAS_W - DEVICE_W) // 2
     shot = Image.open(screenshot_path).convert("RGB")
-    dev, body_mask, screen_rect = device_layer(shot, device_x, DEVICE_Y, DEVICE_W)
+    dev, body_mask, screen_rect = device_layer(shot, device_x, device_y, DEVICE_W)
 
     if gradient:
         canvas = Image.alpha_composite(canvas, drop_shadow(body_mask, 170, (0, 70), 125))
         canvas = Image.alpha_composite(canvas, drop_shadow(body_mask, 70, (0, 30), 195))
+        # dedicated halo right behind the phone, on top of the base gradient —
+        # this is what makes the device look lit from behind, not just the
+        # ambient glow of the base canvas
+        canvas = screen_blend(canvas, radial_glow((CANVAS_W, CANVAS_H), CANVAS_W * .5,
+                                                  device_y + 30, CANVAS_W * .55, 300,
+                                                  hex_to_rgb(bg_hex), .5, 2.6))
     canvas = Image.alpha_composite(canvas, dev)
 
     # ── 4. Breakout card ──────────────────────────────────────────────
@@ -382,6 +456,9 @@ def main():
     p.add_argument("--bg", required=True, help="Background hex colour (#E31837)")
     p.add_argument("--verb", required=True, help="Action verb (TRACK)")
     p.add_argument("--desc", required=True, help="Benefit descriptor (TRADING CARD PRICES)")
+    p.add_argument("--subtitle",
+                   help="Optional smaller descriptor sentence below the headline "
+                        "(translucent white, e.g. 'Your camera roll, sorted into trips.')")
     p.add_argument("--screenshot", required=True, help="Simulator screenshot path")
     p.add_argument("--output", required=True, help="Output file path")
     p.add_argument("--gradient", action="store_true",
@@ -405,7 +482,8 @@ def main():
 
     compose(args.bg, args.verb, args.desc, args.screenshot, args.output,
             gradient=args.gradient, accent_hex=args.accent,
-            breakout=breakout, badges=badges, callouts=callouts)
+            breakout=breakout, badges=badges, callouts=callouts,
+            subtitle=args.subtitle)
 
 
 if __name__ == "__main__":
