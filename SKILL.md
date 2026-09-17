@@ -541,6 +541,49 @@ Skip the breakout/badge calls (variations 3–4) entirely if Step 1 found no can
 
 Show all 4 renders with the Read tool. Label them clearly (Clean / Gradient / Breakout / Breakout+Badge) and briefly note what differs between them. Ask the user to pick a favourite or request changes.
 
+**MANDATORY — pixel-diff before you speak, whenever you are matching a target image.**
+
+Any time you are trying to make a render match a reference (a concept sketch, an
+earlier approved screenshot, a competitor's layout, anything the user points at and says
+"like this"), you MUST measure both images programmatically BEFORE you describe your
+result or claim it's close. Do not report a visual judgment formed by eyeballing at
+display resolution — downscaled previews reliably collapse distinct effects (a hard-edged
+geometric shape and a Gaussian glow look identical at thumbnail size), and you will
+confidently claim a match that isn't there.
+
+The required loop, every iteration:
+
+1. **Crop and upscale the reference** around the element in question and Read it. A
+   full-screenshot view is not enough to identify what an element actually is.
+2. **Measure the reference numerically.** Sample scanlines across the element
+   (`img.getpixel`) and detect its extent with a predicate for its colour, then print
+   per-row runs. This tells you hard edge vs. soft falloff, the colour ramp and its
+   direction, and the exact polygon — none of which are reliable by eye.
+3. **Express the findings as ratios**, normalised to a stable anchor (e.g. the card's
+   width/height), not absolute pixels — the reference is almost always at a different
+   resolution than your canvas. Where geometry matters, transcribe corner positions as
+   card-relative ratios rather than re-deriving them from a centre/size/rotation guess.
+4. **Measure your own render with the exact same detector** and compare the ratios
+   side by side.
+5. **Build a scale-normalised side-by-side** (crop both around the element, resize so
+   the shared anchor is the same size, paste into one labelled image) and Read it.
+6. **Only then** report — and lead with the measured numbers, not an impression.
+
+If a measurement disagrees with what you think you see, the measurement wins. If your
+numbers are off target, iterate and re-measure; do not show the user and ask if it's
+close enough.
+
+**Also check the blend operator, not just the shape.** A translucent fill composited
+normally *darkens* what it covers; the same fill screen-blended *brightens* it. Over a
+black background these are nearly indistinguishable, so scanline samples on a dark region
+will agree while the two look completely different over photos. Sample where the element
+crosses *bright* content to tell them apart, and check whether the reference lightens or
+darkens what's underneath.
+
+**Where an effect lands matters as much as what it is.** An identical translucent shape
+reads as luminous over photos and as dull grey over an empty black region. Before
+concluding an effect is wrong, check whether it's merely sitting on the wrong content.
+
 **Step 4: Iterate**
 
 Because every visual choice is a `compose.py` flag, iteration is just re-running the script with adjusted arguments: move a badge's `xy`, change the breakout's `zoom`/`dy`, swap `--accent`, toggle `--gradient`, reword `--callouts` text. Batch multiple tweaks into one Bash call, the same as Step 2. This is fast and cheap enough to iterate live with the user rather than waiting on generations. Repeat until they're happy.
@@ -624,24 +667,157 @@ reconstructed later from the image alone.
 
 Only reach for this if the user isn't happy with any deterministic concept and wants ideas beyond what `compose.py`'s flags can easily express. This step produces a **reference concept only** — its output is never copied to `final-6.9/` and never shown as a finished candidate.
 
-1. Check that `generate_image`/`edit_image` from the Gemini MCP server is available. If not, tell the user how to set it up:
-   ```
-   ⚠️ Gemini MCP server not detected. To use concept exploration, you need to set it up:
+**This step MUST use the dedicated Gemini MCP server (`@houtini/gemini-mcp`) — never Higgsfield or any other MCP server**, even if one happens to be configured in the project and could technically reach a "nano banana pro" model through it. Higgsfield routes image generation through its own paid credit system; the Gemini MCP server calls Google's Gemini API directly with the user's own `GEMINI_API_KEY`, at Google's pricing, and keeps the two paths from silently spending the wrong budget. If you're unsure which MCP servers are configured, check tool names for the `mcp__gemini__` prefix specifically — don't assume any `generate_image`-shaped tool is the right one.
 
-   1. Install: npm install -g gemini-mcp
-   2. Add to your Claude Code MCP config (~/.claude/settings.json or project .mcp.json)
-   3. Restart Claude Code
-   4. Run this skill again
+1. **Check whether the Gemini MCP server is configured** — look for `generate_image`/`edit_image` tools with an `mcp__gemini__` prefix (exact prefix depends on the server name used at install time; the setup command below uses `gemini`, giving `mcp__gemini__generate_image` / `mcp__gemini__edit_image`).
 
-   See: https://github.com/nicobailon/gemini-mcp for setup instructions.
+2. **If not found, tell the user and offer to set it up** — don't just print instructions and stop; actively offer to run the install once they give you the key:
    ```
-   This never blocks the deterministic path — it only matters if the user opts into this step.
-2. Render one flat, breakout-free `compose.py` image as the reference, and send it to `edit_image` with a prompt such as:
+   ⚠️ Gemini MCP server not detected. Concept exploration (Step 5) needs it — the
+   deterministic path (compose.py) doesn't require this and is unaffected.
+
+   Package: @houtini/gemini-mcp (https://github.com/houtini-ai/gemini-mcp)
+   Supports Nano Banana Pro (gemini-3-pro-image-preview) directly via Google's
+   Gemini API — separate from Higgsfield or any other image-gen MCP server that
+   might already be configured, so it doesn't draw down those credits.
+
+   To set it up, I just need your Gemini API key (free from
+   https://aistudio.google.com/ → "Get API Key"). Paste it and I'll run:
+
+     claude mcp add -e GEMINI_API_KEY=<your-key> -s user gemini -- npx -y @houtini/gemini-mcp
+
+   `-s user` installs it globally (your user config, ~/.claude.json) so it's
+   available in every project, not just this one — matching how you'd expect a
+   general-purpose tool like this to work. Only the API key is needed; nothing
+   else about this skill or project changes.
+
+   After I run this, you'll need to **fully quit and reopen VS Code** (not
+   just start a new Claude session/tab) before the `mcp__gemini__*` tools
+   show up — the MCP server list loads once when the VS Code extension host
+   starts, so a new session inside the same VS Code window won't pick up a
+   newly-added server.
+   ```
+   Once the user provides the key, run that exact `claude mcp add` command yourself (via Bash), then tell the user to fully restart VS Code (quit the application, not just open a new Claude session) — the MCP server list is loaded once per VS Code extension host startup, so it won't pick up a newly-added server otherwise. Confirm the `mcp__gemini__generate_image` tool is visible after they've restarted and resumed, before continuing. This never blocks the deterministic path — it only matters if the user opts into this step.
+
+   **Known trap**: an earlier version of this doc pointed at `nicobailon/gemini-mcp`, which doesn't exist (confirmed 404 on 2026-09-17) — the package name had been mixed up with a different (real) `@rlabs-inc/gemini-mcp` package at some point, but the tool names (`generate_image`/`edit_image`) and behavior in this doc were always written against `@houtini/gemini-mcp`, which is the one to actually install. Don't resurrect the old repo URL.
+
+4. Render one flat, breakout-free `compose.py` image as the reference, and send it through **`generate_image`, not `edit_image`** — pass the reference as an item in `images` (a guidance input, not a strict edit target) with `imageSize: "2K"` and `aspectRatio: "9:16"`, plus a prompt such as:
    ```
    This is a scaffold for an App Store screenshot. Propose ONE creative concept for how to enhance it — background treatment, an optional breakout of a UI panel, and any supporting accents. This is for creative reference only; I will rebuild your concept by hand afterward, so prioritize an interesting, well-composed idea over pixel polish or photorealism.
    ```
-3. Show the result to the user as inspiration, clearly labeled as a concept sketch, not a candidate.
-4. If they like something in it, translate what it did into `compose.py` flags — its background treatment → `--gradient`/colour choice, its breakout placement/scale → `--breakout` box/zoom/dy, any extra emphasis → `--badges`/`--callouts` — and render a new deterministic concept (back to Step 2/4). Never ship the Nano Banana pixels directly, even if the user likes them as-is — rebuild the same idea deterministically so the final asset stays pixel-faithful and reproducible.
+
+   **Use `generate_image` with `imageSize`, never `edit_image`, for this step.** `edit_image`
+   has no size parameter at all — it always outputs at the model's native edit resolution
+   (~700px wide), which is too low-res to reliably pixel-diff against in Step 3's mandatory
+   measurement loop (edges and gradients get lost in antialiasing at that size). `generate_image`
+   does expose `imageSize` ("1K"/"2K"/"4K") and still accepts reference images to guide the
+   composition, so it's the only one of the two that can produce a measurable reference.
+   Default to **`"2K"`** — `"4K"` (3072×5504 measured) is needlessly large for this purpose,
+   slower, and produces a bigger file than the concept-sketch use case needs; only go to 4K if
+   2K still isn't sharp enough to measure an edge cleanly. Confirmed via `gemini_help
+   topic="image_generation"`: the requested size is the file actually saved to disk, not just a
+   preview — the *inline preview* shown in-chat is separately capped at 1024px regardless of
+   the requested size, so judge sharpness from the saved file, not the preview thumbnail.
+5. Show the result to the user as inspiration, clearly labeled as a concept sketch, not a candidate.
+6. If they like something in it, translate what it did into `compose.py` flags — its background treatment → `--gradient`/colour choice, its breakout placement/scale → `--breakout` box/zoom/dy, any extra emphasis → `--badges`/`--callouts` — and render a new deterministic concept (back to Step 2/4). Never ship the Nano Banana pixels directly, even if the user likes them as-is — rebuild the same idea deterministically so the final asset stays pixel-faithful and reproducible.
+
+   **Rebuilding a nano concept is exactly the case the Step 3 pixel-diff rule exists for.**
+   Measure the concept's element before rebuilding it — crop, upscale, sample scanlines,
+   transcribe the geometry as ratios — rather than reproducing your impression of it. An
+   effect that reads as "a glow" at full-screenshot zoom can turn out to be a hard-edged
+   screen-blended polygon; you will not catch that by looking. If a concept's element
+   isn't expressible in existing flags, it's fine to build it in a one-off script that
+   imports `compose.py`'s helpers (`rrect_mask`, `drop_shadow`, `screen_blend`,
+   `hex_to_rgb`) — but fold it into `compose.py` as a real flag once the user approves it,
+   so the set stays reproducible.
+
+7. **If the deterministic rebuild still isn't viable, fall back to a verified cutout.**
+   Some effects genuinely resist parametrization — a real perspective extrusion, an organic
+   material, a shape you can measure but can't cheaply re-derive as a formula. Reach for this
+   fallback only after attempting the deterministic rebuild (Step 6, with its mandatory
+   pixel-diff loop) and having the user confirm it still doesn't look right — it produces a
+   **fixed-resolution raster you can no longer tune with flags**, so it's a real fallback, not
+   a shortcut to skip iteration.
+
+   **7a. Regenerate the SAME chosen concept with a chroma-key background**, via `generate_image`
+   (never `edit_image` — see the note above), same `imageSize: "2K"` and `aspectRatio`, feeding
+   the ORIGINAL concept image back in as the reference, with a prompt like:
+   ```
+   Recreate this exact image with two changes and nothing else: (1) replace the background AND
+   the top headline text area with a single flat, solid, fully saturated chroma-key green
+   (#00FF00) — no gradient, no texture, pure flat green, and no text at all in that area.
+   (2) Keep everything else pixel-identical: [name the specific element — device frame, app
+   screenshot, the card/badge/effect] at the same position, size, and angle. Do not add any new
+   text, do not change the [element]'s shape in any way — this is purely a background/headline
+   swap to flat green for chroma-keying.
+   ```
+   **Expect partial non-compliance and check for it before keying.** In practice the model
+   reliably greens the *outer* background but often (a) leaves the headline text in place on a
+   black backdrop instead of removing it, and (b) renders a soft drop-shadow/vignette hugging
+   the device silhouette that fades gradually from black to green rather than a hard cutoff —
+   this fools a naive colour threshold into leaving a dark smudge right where the vignette was
+   cut off by your crop line. Inspect the raw green-screen output directly (crop and Read the
+   top ~500px and the area alongside the device) before writing any keying code — don't assume
+   the prompt was followed.
+
+   **7b. Chroma-key it to a transparent PNG:**
+   - Crop tightly to just the device (+ anything breaking out past its edges, like a badge or
+     card) — start the crop row right where the device's own silhouette visibly begins (check
+     this visually first; it's reliably *below* where a naive "first non-green pixel" scan
+     says, because that scan also fires on the vignette). Cropping out the headline/vignette
+     band entirely is more reliable than trying to key it.
+   - Per pixel, compute `greenness = g - max(r, b)`. Alpha = 255 below a low threshold (~15),
+     0 above a high threshold (~55), linear ramp between. Despill by pulling the green channel
+     toward `max(r, b)` wherever `greenness > 0`, so keyed edges don't carry a green fringe.
+   - Multiply the alpha by a rounded-rectangle corner mask (radius ~90px at ~1260px crop width)
+     to hard-clip the four corners of the crop regardless of colour. This is always safe: real
+     device content never reaches a rectangular crop's literal corners (the device silhouette
+     itself is rounded), so anything sitting there is background — this is what actually removes
+     the vignette smudge that colour-keying alone can't fully resolve.
+   - **Verify before trusting it**: composite the result over a bright contrasting solid colour
+     (magenta works well — anything left over reads instantly) and inspect every edge, including
+     wherever an element breaks out past the device's own silhouette. Iterate the crop line and
+     thresholds until there's no fringing or smudge anywhere, not just where you first looked.
+   - Save the verified cutout as a permanent RGBA asset in the benefit's subfolder, e.g.
+     `Creative/AppStore/Generated/0N-benefit-slug/nano-phone-cutout.png`. This is the reusable
+     asset going forward — later edits to this benefit composite against it without
+     regenerating.
+
+   **7c. Composite the cutout onto our OWN background and headline — never onto a normal
+   `compose.py` render that already has its own device painted in.** Compositing on top of our
+   real device leaves a faint ghosted double-edge exactly where the cutout's device silhouette
+   doesn't pixel-align with our real frame's silhouette (confirmed directly — render both and
+   diff before you trust otherwise). Instead render background + headline text only, by calling
+   `compose.py`'s own internals (`gradient_canvas`/`flat_canvas`, `draw_centered` for verb/desc/
+   subtitle) and skipping the `device_layer` step entirely, so there is no device to peek out
+   from behind the cutout:
+   ```python
+   canvas = compose.gradient_canvas(BG, ACCENT)          # or flat_canvas(BG)
+   draw = ImageDraw.Draw(canvas)
+   # ... same draw_centered calls compose() makes for verb/desc/subtitle ...
+   ```
+   Then composite the cutout on top, scaled so its **bottom edge reaches (or passes) the canvas
+   bottom edge**, matching how a real device always bleeds off-canvas — scaling to match
+   `DEVICE_W` alone can leave a gap under a shorter cutout that exposes bare background:
+   ```python
+   scale = (CANVAS_H - device_y) / cutout_height        # not cutout_width / DEVICE_W
+   new_w, new_h = round(cutout_width * scale), round(cutout_height * scale)
+   paste_x = (CANVAS_W - new_w) // 2
+   canvas.alpha_composite(cutout.resize((new_w, new_h), Image.LANCZOS), (paste_x, device_y))
+   ```
+   Verify again before presenting: crop and inspect the seam at `device_y` and the bottom edge.
+
+   **7d. Two standing caveats to flag before this is treated as final**, every time this
+   fallback is used:
+   1. **Any app-screen content inside the cutout is the AI's own invention**, not the real app —
+      it must be replaced with the real screenshot before the benefit goes into `final-6.9/`.
+      This fallback captures a *shape/effect* faithfully; it does not capture real app pixels.
+   2. **If the concept includes a UI element that doesn't visibly exist in the real app** (a
+      badge, a result card, an animation frame), confirm it reflects real functionality before
+      shipping — App Review's accurate-metadata expectations are about screenshots depicting
+      real app behaviour, not about the realism of demo/sample content used to populate them.
+      Don't conflate the two: synthetic stock people in demo photos are a total non-issue;
+      inventing UI the app doesn't have is the actual thing worth checking.
 
 **Step 6: Copy the chosen concept to `final-6.9/`**
 
@@ -732,6 +908,7 @@ Show the showcase image to the user using the Read tool. This is a shareable pre
 
 ## KEY PRINCIPLES
 
+- **Measure, don't eyeball**: when matching a reference image, pixel-diff before you speak (Generation Process, Step 3). Your visual read of a downscaled render is not evidence, and a confident "that's close" that isn't wastes the user's time and trust.
 - **Benefits over features**: "BOOST ENGAGEMENT" not "ADD SUBTITLES TO VIDEOS"
 - **Specific over generic**: "TRACK TRADING CARD PRICES" not "MANAGE YOUR STUFF"
 - **Action-oriented**: Every headline starts with a strong verb
