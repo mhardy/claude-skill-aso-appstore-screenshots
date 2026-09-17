@@ -101,19 +101,35 @@ This phase sets the foundation for everything. The goal is to identify the 3-5 a
 
 ### Step 1: Analyze the Codebase
 
+**This means the actual source code — not a substitute.** Business/marketing docs (a features
+list, ASO research, an App Store listing draft) are useful supplementary context later in this
+step, but they go stale relative to what's actually shipped, and the whole point of this phase is
+building benefits from the app's *current* real functionality. Reading only docs and skipping the
+code is not this step, even if the docs happen to answer the same questions.
+
+If the current working directory doesn't contain the app's source (common when the skill is run
+from a separate marketing/creative folder — check for source files: `.swift`, `.kt`, view
+controllers, a `.xcodeproj`/`.sln`/`package.json`, etc.), don't silently proceed on docs alone —
+ask the user where the source repo lives, then explore that.
+
 Explore the project codebase thoroughly. Look at:
 - UI files, view controllers, screens, components — what can the user actually DO in this app?
 - Models and data structures — what domain does this app operate in?
 - Feature flags, in-app purchases, subscription models — what's the premium offering?
 - Onboarding flows — what does the app highlight first?
 - App name, bundle ID, any marketing copy in the code
-- README, App Store description files, metadata if present
 
 From this analysis, build a mental model of:
 - What the app does (core functionality)
 - Who it's for (target audience)
 - What makes it different (unique value)
 - What problems it solves
+
+**Then, only as a cross-check**, look at any existing business/marketing docs (features list,
+README, App Store description files, metadata) if present. Use them to fill gaps the code alone
+doesn't answer (target audience, competitor framing) — but if a doc claims something the code
+doesn't back up, or the code has functionality the doc doesn't mention, flag that mismatch to the
+user in Step 2 rather than silently trusting the doc. The code is the source of truth.
 
 ### Step 2: Ask the User Clarifying Questions
 
@@ -125,23 +141,41 @@ After your analysis, present what you've learned and ask the user targeted quest
 - "What's the #1 reason someone downloads this app?"
 - "Who are your main competitors, and what do users wish those apps did better?"
 - "What do your best reviews say? What do users love most?"
+- If Step 1 found a mismatch between a business doc and the actual code, surface it explicitly —
+  e.g. "Features.md lists [X], but I don't see that implemented — was it cut, or should I look
+  again?" or "the code has [Y] which isn't in Features.md — want me to include it as a benefit?"
 
 Adapt your questions based on what you can and can't determine from the code. Don't ask questions the code already answers.
 
 ### Step 3: Enrich with ASO keyword data
 
 Before drafting headlines, get *some* real keyword signal rather than relying on general
-knowledge alone — "ASO" without this is just copywriting with extra steps.
+knowledge alone — "ASO" without this is just copywriting with extra steps. Check sources in this
+order and stop at the first one that's usable:
 
-**Preferred — Astro MCP (tryastro.app):** check whether you have access to it in this session.
-It currently only runs on macOS, so on Windows/Linux it typically won't be connected. If
-available, query it for the app's category — competitor keyword usage, high-intent search terms,
-ranking difficulty — for the domain identified in Steps 1–2.
+**1. Preferred — an existing project ASO research doc.** Look for one near the business/marketing
+docs (conventionally `Business/ASO.md`, but check for anything similarly named — `ASO.md`,
+`Keywords.md`, etc. — near wherever App Store listing copy lives). If found, this is already
+validated for this exact app — read it and use its findings directly; don't re-derive anything
+it already answered. Treat its own stated methodology as authoritative over a generic one: for
+example, a real difficulty score based on live App Store query results (e.g. summed rating
+counts of the top-ranked competitors for each keyword) is more trustworthy than a keyword tool's
+canned difficulty estimate, which can be badly wrong wherever 1-2 giant incumbents dominate a
+term while the tool itself scores it as merely moderate.
 
-**Fallback — WebSearch:** if Astro isn't available, tell the user once, briefly — e.g. "Astro
-isn't reachable from this environment (Mac-only), so I'll use web search for keyword signal
-instead" — then use WebSearch (available on any platform) to ground word choice in something
-real:
+**2. Astro MCP (tryastro.app):** if no project ASO doc exists, check whether you have access to
+Astro in this session. It currently only runs on macOS, so on Windows/Linux it typically won't be
+connected. If available, query it for the app's category — competitor keyword usage, high-intent
+search terms, ranking difficulty — for the domain identified in Steps 1–2. Treat any canned
+"difficulty" score with suspicion if you can also pull raw competitor search results (app names +
+rating counts) for the same keyword — a term dominated by one or two massive incumbents is
+harder to win than a moderate difficulty score alone would suggest, regardless of what tool
+produced it.
+
+**3. WebSearch fallback:** if neither of the above is available, tell the user once, briefly —
+e.g. "No existing ASO research and Astro isn't reachable from this environment, so I'll use web
+search for keyword signal instead" — then use WebSearch (available on any platform) to ground
+word choice in something real:
 - Search the App Store for 3-5 direct competitors in this app's category; look at their titles,
   subtitles, and any visible keyword-heavy copy for terms they're clearly targeting
 - Search for recent reviews or "best [category] apps" roundups that use specific phrases
@@ -153,11 +187,11 @@ real:
 This is still not real search-volume/ranking data — say so if asked — but it's grounded in
 actual App Store listings and language instead of pattern-matched from training data.
 
-Either way, use whatever you find to inform word choice in Step 4's headlines (prefer a
+Whichever source applies, use it to inform word choice in Step 4's headlines (prefer a
 high-value keyword phrasing over a merely clever one when both are equally true to the benefit),
-not to override the benefit itself. This step is informational, never blocking — if both Astro
-and a useful WebSearch turn up nothing, say so plainly and continue to Step 4 on the benefit
-analysis alone rather than presenting a guess as if it were researched.
+not to override the benefit itself. This step is informational, never blocking — if nothing
+usable turns up from any source, say so plainly and continue to Step 4 on the benefit analysis
+alone rather than presenting a guess as if it were researched.
 
 ### Step 4: Draft the Core Benefits
 
@@ -201,7 +235,7 @@ Create or update `aso_benefits.md` with:
 - The confirmed benefits list (in order), each with the full headline (ACTION VERB + BENEFIT DESCRIPTOR)
 - The target audience
 - Key app context (what the app does, niche, competitors mentioned)
-- Which keyword source was used (Astro / WebSearch fallback / neither) and any keyword reasoning it informed
+- Which keyword source was used (existing ASO doc / Astro / WebSearch fallback / neither) and any keyword reasoning it informed
 - Any reasoning or user preferences noted during refinement (e.g., "user prefers 'TRACK' over 'MONITOR'")
 
 This means the user won't need to redo benefit discovery in future conversations. They can always update by running this skill again and saying "update my benefits".
