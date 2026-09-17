@@ -499,11 +499,20 @@ python3 "$SKILL_DIR/compose.py" \
 
 This outputs pixel-perfect 1290×2796 PNGs with:
 - Bold white headline text (verb auto-sized to fit canvas width)
-- iPhone device frame (from pre-rendered template)
-- Simulator screenshot composited inside the frame
-- Solid background colour
+- Real iPhone 15 Pro device frame (photo, not hand-drawn) with the screenshot clipped to its silhouette
+- Solid background colour by default
 
 The scaffolds are internal intermediates — do NOT show them to the user or ask for confirmation. Proceed immediately to Step 2 (Nano Banana enhancement).
+
+**Optional — skip AI enhancement entirely for a fully deterministic set:** If the user wants text and app pixels to stay pixel-perfect (no AI re-rendering risk to faces, UI, or captions), `compose.py` can produce the finished image itself instead of a scaffold, using these optional flags:
+
+- `--gradient` — dark radial-glow gradient built from `--bg` instead of a flat fill
+- `--accent HEX` — colour for badge/callout pills (defaults to `--bg`)
+- `--breakout '{"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0}'` — lifts a real UI card out of the screenshot (crop box in the screenshot's own pixel coordinates) and floats it over the device frame with a shadow and rim highlight
+- `--badges '[{"text":"...","xy":[x,y],"anchor":"tl"}]'` — accent pill(s) pinned to a point on the canvas
+- `--callouts '[{"text":"...","anchor":[x,y],"label":[x,y],"side":"left"}]'` — pill with a leader line pointing at a spot on the artwork
+
+When using this deterministic path, skip Steps 2–5 (Nano Banana enhancement) entirely and copy the `compose.py` output straight to `final-6.9/` in Step 6. Only use a breakout when there's an obvious UI panel that reinforces the headline — same rule as the AI-enhancement path.
 
 **Step 2: Enhance with Nano Banana Pro (3 versions in parallel)**
 
