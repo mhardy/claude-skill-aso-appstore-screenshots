@@ -436,7 +436,8 @@ def compose(bg_hex, verb, desc, screenshot_path, output_path, gradient=False,
     if breakout:
         canvas, _ = breakout_card(canvas, shot, tuple(breakout["box"]), screen_rect,
                                   zoom=breakout.get("zoom", 1.30),
-                                  dy=breakout.get("dy", 0))
+                                  dy=breakout.get("dy", 0),
+                                  corner=breakout.get("corner", 36))
 
     # ── 5. Badges + callouts ──────────────────────────────────────────
     for b in badges:
@@ -465,9 +466,14 @@ def main():
                    help="Use a dark radial-glow gradient (built from --bg) instead of a flat fill")
     p.add_argument("--accent", help="Hex colour for badge/callout pills (defaults to --bg)")
     p.add_argument("--breakout",
-                   help='JSON: {"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0} — a UI card '
+                   help='JSON: {"box":[x0,y0,x1,y1],"zoom":1.3,"dy":0,"corner":36} — a UI card '
                         'cropped from the screenshot (in its own pixel coords) that pops '
-                        'out over the device frame')
+                        'out over the device frame. "corner" (optional, default 36) is the '
+                        'mask/ring corner radius before scale*zoom is applied — raise it when '
+                        'the source UI element already has its own rounded corner baked into '
+                        'the screenshot pixels, otherwise a gap of the source\'s own background '
+                        'shows between the ring and the photo (the source\'s rounding radius, '
+                        'converted to final-canvas scale, is the floor this needs to clear)')
     p.add_argument("--badges",
                    help='JSON array: [{"text":"...","xy":[x,y],"anchor":"tl"}] — '
                         'accent pills pinned to a point on the canvas')
