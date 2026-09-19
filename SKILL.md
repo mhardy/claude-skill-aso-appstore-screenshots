@@ -20,11 +20,12 @@ Before doing ANY codebase analysis, check for previously saved state. Memory is 
 **Check memory for each of these (in order):**
 
 1. **Screenshot format** — Standard Portrait, Standard Landscape, or Panoramic Portrait
-2. **Benefits** — confirmed benefit headlines + target audience + app context
-3. **Screenshot analysis** — simulator screenshot file paths, ratings (Great/Usable/Retake), descriptions of what each shows, and any assessment notes
-4. **Pairings** — which simulator screenshot is paired with which benefit
-5. **Brand colour** — the confirmed background colour (name + hex)
-6. **Generated screenshots** — file paths to generated and resized screenshots, which benefits they correspond to
+2. **Hero page (00)** — confirmed hero headline + paired simulator screenshot (separate from benefit pages)
+3. **Benefits** — confirmed benefit headlines + target audience + app context (slots 01+)
+4. **Screenshot analysis** — simulator screenshot file paths, ratings (Great/Usable/Retake), descriptions of what each shows, and any assessment notes
+5. **Pairings** — which simulator screenshot is paired with the hero and with each benefit
+6. **Brand colour** — the confirmed background colour (name + hex)
+7. **Generated screenshots** — file paths to generated and resized screenshots, which slots they correspond to
 
 **Present a status summary to the user** showing what's saved and what phase they're at. For example:
 
@@ -198,11 +199,11 @@ alone rather than presenting a guess as if it were researched.
 Based on your analysis, the user's input, and any ASO keyword data from Step 3, draft 3-5 core
 benefits. Each benefit MUST:
 
-1. **Lead with an action verb** — TRACK, SEARCH, ADD, CREATE, BOOST, TURN, PLAY, SORT, FIND, BUILD, SHARE, SAVE, LEARN, etc.
+1. **Lead with a strong, specific action verb by default** — TRACK, SEARCH, ADD, CREATE, BOOST, TURN, PLAY, SORT, FIND, BUILD, SHARE, SAVE, LEARN, etc. — UNLESS Step 3's keyword research surfaces a higher-value non-verb phrase (e.g., "AUTOMATIC" as a keyword exact-match, "YOURS" as a stronger possessive claim than any available verb phrasing). When keyword research and verb-purity conflict, the keyword wins — note the override and reasoning in the final benefit list so future sessions understand the call.
 2. **Focus on what the USER gets**, not what the app does technically
 3. **Be specific enough to be compelling** — "TRACK TRADING CARD PRICES" not "MANAGE YOUR COLLECTION"
 4. **Answer the user's unspoken question**: "Why should I download this instead of scrolling past?"
-5. **Favor high-intent keywords when Step 3 turned up real signal** (Astro or WebSearch) — if two phrasings are equally true to the benefit, prefer the one that matches how people actually search, and say so in your reasoning
+5. **Favor high-intent keywords when Step 3 turned up real signal** (Astro or WebSearch) — if two phrasings are equally true to the benefit, prefer the one that matches how people actually search, and say so in your reasoning. Apple's OCR indexing of screenshot text (circa 2024) means your benefit headlines are now discoverable keywords, not just messaging — a high-value keyword phrase in the largest/boldest text (line 1) is worth the messaging trade-off if a verb phrasing and a keyword phrasing genuinely compete.
 
 The verb/benefit examples above are capitalized here for emphasis when brainstorming — the
 rendered screenshot uses sentence case, not forced uppercase (see Screenshot Format
@@ -246,9 +247,82 @@ This means the user won't need to redo benefit discovery in future conversations
 
 ---
 
+## HERO PAGE (Slot 00 — Required Landing Screenshot)
+
+Benefit pages (01+) answer “what can it do?” The **hero** answers “what is this / why download?” If every screenshot uses the same verb → desc → subtitle → breakout → badge template, slot 1 reads like page 2 of a feature carousel — even when the copy is category-perfect.
+
+**Always treat the hero as its own slot numbered `00`.** Do not renumber or delete existing approved benefit files when adding a hero mid-set — keep `01+` as-is and add `00-*` alongside them.
+
+### When to run this phase
+
+- After benefits are confirmed (so you know the category claim and which benefit is the core hook), **before** or as the first step of Generation.
+- If the set already has approved benefit screenshots and the user says pages all feel like 2–10: add `00` without touching existing finals.
+
+### What makes a hero different from a benefit page
+
+| | Hero (`00`) | Benefit pages (`01+`) |
+|---|---|---|
+| Job | Category + outcome — “what is this app?” | One concrete win — “here’s a reason to swipe/download” |
+| Headline | Category claim or #1 keyword phrase (often the same words as benefit 1, or a tighter brand/outcome line) | Specific action/keyword benefit |
+| Chrome | **Default: no breakout, no badge** — let the full UI sell | Breakout + badge OK when a panel reinforces the benefit |
+| Visual | Richest **whole-product** screen (dashboard, home, main canvas with real content) | Screen that proves that one benefit |
+| Template feel | Must not look identical to 01–N when swiped | Shared feature-page language is fine |
+
+**Do not** “hero-ize” by only promoting benefit 1’s breakout/badge concept into slot 1. Same layout = same page-type, regardless of copy.
+
+### Step 1: Confirm hero copy
+
+Draft (or confirm) a short hero headline:
+
+1. **Line 1 + Line 2** — usually the highest-intent category/keyword phrase (e.g. “Automatic” / “Photo Organizer”). Prefer exact-match winnable keywords from Benefit Discovery Step 3 over a clever verb if they compete.
+2. **Optional subtitle** — one outcome sentence in second person. Skip it if the two-line headline already lands (hero should feel simpler than feature pages, not denser).
+3. **No badge/callout by default.** Only add one if the user explicitly wants it after seeing clean concepts.
+
+Save confirmed hero copy under a `## Hero Page (00)` heading in `aso_benefits.md` (separate from the numbered benefits list).
+
+### Step 2: Pair a whole-product screenshot
+
+Pick the simulator shot that best shows the **transformed product state** — full of real content, readable at thumbnail size, not a zoomed feature panel or empty state. Rate and pair it like any other screenshot, but record it as the **hero pairing** in `aso_screenshot_pairings.md` (slot `00`), distinct from benefit pairings. The same source file may also back a benefit page (e.g. hero = clean dashboard; benefit 1 = same dashboard with a breakout) — that reuse is intentional.
+
+### Step 3: Generate hero concepts (before or ahead of benefits)
+
+Use the same brand colour / accent / gradient style template as the rest of the set. Render into `SCREENSHOTS_DIR/00-[hero-slug]/` — **never overwrite** existing `01+` working folders or `final-6.9/01+` files.
+
+Default concept set for the hero (skip breakout/badge variants unless the user asks):
+
+1. **Clean** — flat background, full device, no breakout
+2. **Gradient** — radial-glow background, full device, no breakout
+3. **Gradient, no subtitle** (optional) — same as 2 but headline-only, when testing whether the subtitle makes it feel like a feature page
+
+```bash
+SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
+mkdir -p "$SCREENSHOTS_DIR/00-[hero-slug]" && \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --accent "[ACCENT HEX]" --verb "[Verb]" --desc "[Desc]" \
+  --subtitle "[Subtitle]" --screenshot [path] \
+  --output "$SCREENSHOTS_DIR/00-[hero-slug]/v1-clean.png" && \
+python3 "$SKILL_DIR/compose.py" --bg "[HEX]" --accent "[ACCENT HEX]" --verb "[Verb]" --desc "[Desc]" \
+  --subtitle "[Subtitle]" --screenshot [path] --gradient \
+  --output "$SCREENSHOTS_DIR/00-[hero-slug]/v2-gradient.png"
+```
+
+Review with the user, iterate flags only (no file deletion). On approval:
+
+```bash
+mkdir -p "$SCREENSHOTS_DIR/final-6.9"
+cp "$SCREENSHOTS_DIR/00-[hero-slug]/v2-gradient.png" "$SCREENSHOTS_DIR/final-6.9/00-[hero-slug].png"
+```
+
+Upload order in App Store Connect: `00` first (landing), then `01+`. Filenames with a `00` prefix sort correctly; do not rename approved `01+` assets to make room.
+
+### Step 4: Save to Memory
+
+Record hero status in `aso_generation_state.md` as slot **00** (headline, subtitle, concept chosen, compose flags, source screenshot, final path). Update `MEMORY.md`. Mark status generated / approved / needs-redo like any other slot.
+
+---
+
 ## SCREENSHOT PAIRING
 
-Once benefits are confirmed, you need simulator screenshots to place inside the device frames.
+Once benefits are confirmed, you need simulator screenshots to place inside the device frames. Pair the **hero (00)** as well as each benefit — see Hero Page above.
 
 ### Step 1: Collect Simulator Screenshots
 
@@ -457,7 +531,7 @@ Use two compose scripts depending on the screen type:
 Each screenshot follows this exact high-converting ASO format. **Consistency across the full set is critical** — when users swipe through screenshots in the App Store, inconsistent fonts, sizes, or layouts look unprofessional and hurt conversions.
 
 **Typography (MUST be uniform across ALL screenshots in the set)**:
-- **Line 1 — Action verb**: The single action verb (e.g., "Automatic", "Search", "Boost"). This is the BIGGEST, boldest text on the screenshot, center-aligned. Rendered in the brand **accent colour** (`compose.py --accent`), not white — this is what visually separates the verb from the rest of the headline. Case is preserved as typed — sentence case (e.g., "Automatic") reads better than forced uppercase; don't uppercase it. Same font, same size, same weight on every screenshot.
+- **Line 1 — Lead phrase (verb or keyword)**: A strong, specific action verb by default (e.g., "Search", "Boost", "Track") — or a high-value keyword phrase if Step 3's research showed it outweighs a generic verb phrasing (e.g., "Automatic" for exact-match keyword dominance, "YOURS" for a stronger possessive claim than available verbs). This is the BIGGEST, boldest text on the screenshot, center-aligned. Rendered in the brand **accent colour** (`compose.py --accent`), not white — this is what visually separates it from the rest of the headline. Apple's OCR indexing makes this text discoverable, so prefer a high-intent keyword phrase over a weak verb if they compete. Case is preserved as typed — sentence case (e.g., "Automatic") reads better than forced uppercase; don't uppercase it. Same font, same size, same weight on every screenshot.
 - **Line 2 — Benefit descriptor**: The rest of the headline (e.g., "Photo Organizer", "Any Verse in Seconds"). Noticeably smaller than line 1, still bold, but **white**, center-aligned, case preserved as typed. Same font, same size, same weight on every screenshot.
 - **Optional subtitle**: A smaller descriptor sentence below the headline (`compose.py --subtitle`), e.g. "Your camera roll, sorted into trips and days the moment you open it." — medium weight, translucent white (~65% opacity), center-aligned, wraps to 1-2 lines. Use this when the verb+descriptor alone doesn't fully land the benefit; skip it when they already do. Font size is `SUBTITLE_SIZE` in `compose.py` — **62px**, picked by direct visual comparison across 54/56/58/62/64/68/72px on a real render (see comment above the constant). 62 was the smallest size that stopped reading as "too small," while staying clearly secondary to `DESC_SIZE` (124px) with no line-wrap penalty (73px+ starts wrapping an extra line). This is a human-legibility call only — not an OCR/indexing target.
 - **Font**: Heavy/black weight sans-serif for verb/descriptor (e.g., SF Pro Display Black, Inter Black), medium weight for the optional subtitle. Not just bold — heavy/black weight for maximum impact on the headline.
@@ -497,9 +571,11 @@ Breakout elements can give screenshots personality and make them feel dynamic. B
 
 Screenshots are produced **entirely by `compose.py`** — no image model touches the pixels unless the user explicitly asks for the optional fallback in Step 5. The script already builds in a real device frame, gradient backgrounds, breakout cards, badges, and callouts, so text stays crisp and OCR-indexable, the app UI stays pixel-faithful, and every render lands at the exact target dimensions on the first try — no post-generation resize step needed.
 
-**The first approved screenshot becomes the style template for the rest of the set.** Reuse its background treatment (flat vs gradient), accent colour, and badge/callout style on subsequent screenshots so the set reads as a cohesive series when swiped through.
+**Generate the hero (`00`) first** when starting a new set (see Hero Page above) — clean/gradient, no breakout by default. Then generate benefit pages `01+`.
 
-For each benefit + screenshot pair, render **4 concept variations** so the user has real alternatives to compare — the same role the old "3 Nano Banana versions" used to play, just instant, free, and reproducible:
+**The first approved screenshot (usually the hero, or the first approved benefit if hero comes later) becomes the style template for the rest of the set.** Reuse its background treatment (flat vs gradient), accent colour, and badge/callout style on subsequent screenshots so the set reads as a cohesive series when swiped through. When adding a hero to an already-approved set, match the existing set’s style template instead of inventing a new one — and **do not delete or renumber** existing `01+` files.
+
+For each **benefit** + screenshot pair, render **4 concept variations** so the user has real alternatives to compare — the same role the old "3 Nano Banana versions" used to play, just instant, free, and reproducible:
 
 1. **Clean** — flat background, no breakout
 2. **Gradient** — the richer radial-glow background, still no breakout
@@ -598,6 +674,18 @@ concluding an effect is wrong, check whether it's merely sitting on the wrong co
 Because every visual choice is a `compose.py` flag, iteration is just re-running the script with adjusted arguments: move a badge's `xy`, change the breakout's `zoom`/`dy`, swap `--accent`, toggle `--gradient`, reword `--callouts` text. Batch multiple tweaks into one Bash call, the same as Step 2. This is fast and cheap enough to iterate live with the user rather than waiting on generations. Repeat until they're happy.
 
 **Gotcha — rewording `--verb`/`--desc`/`--subtitle` for style can silently undo Step 3's keyword work.** It's easy to rewrite the headline for punchiness/legibility (a shorter verb, a less redundant subtitle) without re-checking it against the confirmed high-value keyword phrase from Benefit Discovery Step 3. A shorter, punchier verb+desc pair can accidentally *drop* an exact-match winnable keyword phrase from the biggest/boldest text and push it down into the smaller subtitle (or out entirely) — weakening the screenshot's ASO value even though it reads better. Before finalizing any headline reword, re-read the keyword phrase recorded for this benefit in `aso_benefits.md` Step 3 and confirm the new verb+desc still contains the exact-match phrase (or the closest true variant) in the large text, not just in the subtitle. If punchier phrasing and keyword-exact phrasing genuinely conflict, say so explicitly and let the user choose, rather than quietly optimizing for style alone.
+
+**Gotcha — when regenerating for a headline/caption change, badge and callout TEXT is confirmed copy, not free to rewrite.** `aso_benefits.md` records the approved badge/callout wording per
+benefit alongside the verb/desc/subtitle — it is exactly as confirmed as the headline text, just
+easier to overlook because it's a smaller, secondary element. When the user asks to regenerate a
+screenshot with new headline wording, re-read that benefit's existing `Badge:`/`Callout:` line
+from `aso_benefits.md` (and `aso_generation_state.md` if already generated) and reuse it verbatim
+in the new render — do not invent replacement badge copy to "match" the new headline's theme
+unless the user explicitly asks for new badge text. If no badge text is recorded yet for this
+benefit, that's a sign it was never confirmed — ask the user rather than making one up. Record
+badge/callout text in BOTH `aso_benefits.md` (the confirmed-copy source of truth) and
+`aso_generation_state.md` (the per-render params) so a future session regenerating this benefit
+doesn't need to reverse-engineer it from a screenshot.
 
 **Gotcha — badge/breakout `xy` is NOT independent of the headline.** `compose.py` pushes the
 device (and everything anchored to it — the breakout card, and any badge you meant to sit near
@@ -727,6 +815,23 @@ Only reach for this if the user isn't happy with any deterministic concept and w
    topic="image_generation"`: the requested size is the file actually saved to disk, not just a
    preview — the *inline preview* shown in-chat is separately capped at 1024px regardless of
    the requested size, so judge sharpness from the saved file, not the preview thumbnail.
+
+   **Exception — when the concept must be App Store-shaped (1290×2796, ratio 0.461), not 9:16 (0.5625).**
+   `generate_image` only offers 1:1/3:4/4:3/9:16/16:9 and ignores the reference's shape (omitting
+   `aspectRatio` returns a 1:1 square). Higgsfield's GPT Image 2.5 caps at 9:16 too and snaps custom
+   sizes like `1280x2768` to 3:4. The only path proven to land near App Store shape (704×1520, ratio
+   0.463) is **`edit_image`**, which follows the *input image's* proportions. Recipe (tested 2026-09-18):
+   1. Build a **1290×2796 reference** — a `compose.py` render, or a prior concept padded top/bottom to
+      that ratio by edge-replicating its background rows (`np.pad(..., mode='edge')`, then resize).
+      Pad top/bottom, not the sides; a 9:16 source is *wider* than 0.461, so it can't be side-padded.
+   2. Send it via `edit_image` with a prompt: use the full tall canvas, redistribute vertical spacing,
+      keep the exact text/photos/styling, don't crop or add elements.
+   3. Resize the result to exactly 1290×2796 (stretch is <0.5%, since shape is already ~0.463).
+
+   Trade-off: output is only ~704px wide, so it's soft after the 1.8× upscale — fine for a concept
+   sketch, not measurable for the Step 3 pixel diff (use the `generate_image` 2K/9:16 path for that).
+   Don't rediscover this: `edit_image` has no size param, `generate_image` can't do 0.461, and a 9:16
+   output stretched to 1290×2796 distorts ~18%. Sharper App Store-shaped output needs an upscaler.
 5. Show the result to the user as inspiration, clearly labeled as a concept sketch, not a candidate.
 6. If they like something in it, translate what it did into `compose.py` flags — its background treatment → `--gradient`/colour choice, its breakout placement/scale → `--breakout` box/zoom/dy, any extra emphasis → `--badges`/`--callouts` — and render a new deterministic concept (back to Step 2/4). Never ship the Nano Banana pixels directly, even if the user likes them as-is — rebuild the same idea deterministically so the final asset stays pixel-faithful and reproducible.
 
@@ -861,6 +966,9 @@ Save generated screenshots to `SCREENSHOTS_DIR` (confirmed in Prerequisites Chec
 
 ```
 Creative/AppStore/Generated/
+  00-hero-[slug]/                ← working concepts for the landing/hero page
+    v1-clean.png                 ← flat bg, full device, no breakout
+    v2-gradient.png               ← gradient bg, full device, no breakout
   01-track-card-prices/          ← working concepts for benefit 1
     v1-clean.png                 ← deterministic compose.py: flat bg, no breakout
     v2-gradient.png               ← gradient bg, no breakout
@@ -871,11 +979,12 @@ Creative/AppStore/Generated/
     v1-clean.png
     ...
   final-6.9/                     ← approved screenshots, ready to upload
+    00-hero-[slug].png            ← landing page (upload first)
     01-track-card-prices.png
     02-search-any-card.png
 ```
 
-The `final-6.9/` folder is the only one the user needs to care about — it contains one approved, App Store-ready screenshot per benefit, numbered in order. The benefit subfolders contain all working concepts and can be ignored or deleted after the set is complete. A `nano-concept.*` file only appears if the optional AI fallback (Step 5) was used — it must never end up in `final-6.9/`.
+The `final-6.9/` folder is the only one the user needs to care about — it contains one approved, App Store-ready screenshot per slot (`00` hero, then benefits), numbered in order. Working subfolders can be ignored or deleted after the set is complete; when adding a hero mid-set, never delete existing approved files to “make room.” A `nano-concept.*` file only appears if the optional AI fallback (Step 5) was used — it must never end up in `final-6.9/`.
 
 Also tell the user exactly which App Store Connect display size slot each screenshot fits into.
 
@@ -920,10 +1029,12 @@ Show the showcase image to the user using the Read tool. This is a shareable pre
 - **Measure, don't eyeball**: when matching a reference image, pixel-diff before you speak (Generation Process, Step 3). Your visual read of a downscaled render is not evidence, and a confident "that's close" that isn't wastes the user's time and trust.
 - **Benefits over features**: "BOOST ENGAGEMENT" not "ADD SUBTITLES TO VIDEOS"
 - **Specific over generic**: "TRACK TRADING CARD PRICES" not "MANAGE YOUR STUFF"
-- **Action-oriented**: Every headline starts with a strong verb
+- **Action/keyword-oriented**: Every headline starts with a strong verb, or a high-value keyword phrase if keyword research shows it outweighs a generic verb (Apple's OCR indexing makes line 1 discoverable)
 - **User-centric**: Frame everything from the downloader's perspective
 - **Conversion-focused**: Every decision should answer "will this make someone tap Download?"
-- The first screenshot is the most important — it must communicate the single biggest reason to download
-- Screenshots should tell a story when swiped through — each one reveals a new compelling reason
-- Always pair the most visually impactful simulator screenshot with the most important benefit
+- **Hero ≠ benefit 1 with different copy** — slot `00` must feel like a landing page (whole-product UI, little/no chrome); slots `01+` are feature pages
+- The hero (`00`) is the most important screenshot — category + outcome; upload it first in App Store Connect
+- Screenshots should tell a story when swiped through — hero, then each benefit reveals a new compelling reason
+- Always pair the richest whole-product simulator screenshot with the hero; pair the most visually impactful proof shot with each benefit
 - Never use an empty state, loading screen, or settings page as a screenshot — show the app at its best
+- Never delete or renumber existing approved `01+` assets when adding a hero mid-set — add `00` alongside them
